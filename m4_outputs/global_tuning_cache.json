@@ -1,0 +1,7 @@
+{
+  "garch_p": 1,
+  "garch_q": 1,
+  "egarchx_p": 2,
+  "egarchx_o": 1,
+  "egarchx_q": 2
+}
