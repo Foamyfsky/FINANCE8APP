@@ -574,7 +574,37 @@ def _safe_load_csv(filename):
         return pd.read_csv(path)
     return pd.DataFrame()
 
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  Entry point
-# ════════════════�
+# ══════════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="M4 Regime-Based Model Router — DATA3888 Group 8",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python pipline.py --all
+  python pipline.py --stock_id 42
+  python pipline.py --stock_id 42 --time_id 15
+  python pipline.py --stock_id 42 --no_plot
+        """
+    )
+    parser.add_argument("--all",       action="store_true",
+                        help="Run summary across all 60 selected stocks")
+    parser.add_argument("--stock_id",  type=int, default=None,
+                        help="Run pipeline for a single stock_id")
+    parser.add_argument("--time_id",   type=int, default=None,
+                        help="Filter to a specific time_id within a stock")
+    parser.add_argument("--no_plot",   action="store_true",
+                        help="Skip saving plots (faster for batch runs)")
+    args = parser.parse_args()
+
+    if args.all:
+        run_all()
+    elif args.stock_id is not None:
+        run_stock(args.stock_id, time_id=args.time_id, save_plot=not args.no_plot)
+    else:
+        parser.print_help()
+        print("\n  Please specify --all or --stock_id <id>")
+        import sys; sys.exit(1)
