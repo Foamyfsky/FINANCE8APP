@@ -38,7 +38,7 @@ LGBM_OUT  = os.path.join(OUTPUT_DIR, "lgbm_outputs")
 
 N_TRAIN      = 16
 N_VAL        = 4
-N_FOLDS      = 5
+TRAIN_SPLIT  = 0.8   # first 80% of time_ids → train, last 20% → evaluate
 RANDOM_STATE = 42
 
 C_LGBM  = "#8B5CF6"
@@ -53,9 +53,10 @@ os.makedirs(LGBM_OUT, exist_ok=True)
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def qlike(pred, actual):
+    """Variance-form QLIKE: log(pred) + actual/pred. Matches rosa.py and arma_jisu.py."""
     pred   = np.maximum(pred,   1e-10)
-    actual = np.maximum(actual, 1e-10)
-    return np.log(pred ** 2) + actual ** 2 / pred ** 2
+    actual = np.maximum(actual, 0.0)
+    return np.log(pred) + actual / pred
 
 
 def engineer_features(grp):
@@ -113,13 +114,16 @@ complete = counts[counts == N_TRAIN + N_VAL].index
 df = df.set_index(["stock_id","time_id"]).loc[complete].reset_index()
 
 liquidity_map = get_liquidity_map()
-selected      = get_selected_stocks(df=df)
+# Do NOT pass df — selected_stocks.csv is the sole source of truth.
+selected      = get_selected_stocks()
 liquid_ids    = selected["liquid"]
 illiquid_ids  = selected["illiquid"]
+mixed_ids     = selected.get("mixed", [])
 all_ids       = selected["all"]
 
 df = df[df["stock_id"].isin(all_ids)].copy()
-print(f"  Using {len(all_ids)} stocks: {len(liquid_ids)} liquid + {len(illiquid_ids)} illiquid")
+print(f"  Using {len(all_ids)} stocks: {len(liquid_ids)} liquid + "
+      f"{len(illiquid_ids)} illiquid + {len(mixed_ids)} mixed")
 
 
 # ── Feature engineering ───────────────────────────────────────────────────────
@@ -164,55 +168,60 @@ FEATURE_COLS = [c for c in data.columns
 print(f"  {data.shape[0]:,} sessions x {len(FEATURE_COLS)} features")
 
 
-# ── Cross-validation per regime ───────────────────────────────────────────────
+# ── Train / evaluate per regime — temporal 80/20 split on time_ids ───────────
+#
+# Mirrors exactly what GARCH, EGARCH-X, and HAR-RV do:
+#   • Features come from each session's training window (buckets 1-16)
+#   • Target is the mean RV of that session's validation window (buckets 17-20)
+#   • time_ids are sorted chronologically; first 80% train the model,
+#     last 20% are the held-out evaluation set — one QLIKE per session.
+#
+# No cross-validation: a single model is trained per regime and evaluated
+# on the held-out sessions, giving a direct per-(stock_id, time_id) QLIKE
+# that is comparable to the other models' outputs.
 
 all_preds = []
 feat_imps = []
 
-for regime_label, regime_ids in [("liquid", liquid_ids), ("illiquid", illiquid_ids)]:
-    rdata    = data[data["stock_id"].isin(regime_ids)].copy()
-    tids     = np.array(sorted(rdata["time_id"].unique()))
+regime_groups = [("liquid", liquid_ids), ("illiquid", illiquid_ids)]
+if mixed_ids:
+    regime_groups.append(("mixed", mixed_ids))
 
-    # ── Time-ordered folds ────────────────────────────────────────────────────
-    # Split time_ids into N_FOLDS strictly chronological blocks.
-    # Fold k trains on blocks 0..k-1 and validates on block k.
-    # This prevents the model from "seeing the future" during training,
-    # which was causing artificially good scores in the round-robin approach.
-    fold_size = len(tids) // N_FOLDS
-    rdata["fold"] = -1
-    for k in range(N_FOLDS):
-        start = k * fold_size
-        end   = (k + 1) * fold_size if k < N_FOLDS - 1 else len(tids)
-        block_tids = tids[start:end]
-        rdata.loc[rdata["time_id"].isin(block_tids), "fold"] = k
+for regime_label, regime_ids in regime_groups:
+    rdata = data[data["stock_id"].isin(regime_ids)].copy()
+    tids  = np.array(sorted(rdata["time_id"].unique()))
 
-    print(f"\n{N_FOLDS}-fold time-ordered CV — {regime_label.upper()} "
+    # Temporal split — same 80/20 ratio as the bucket-level split
+    n_train    = max(1, int(len(tids) * TRAIN_SPLIT))
+    train_tids = tids[:n_train]
+    val_tids   = tids[n_train:]
+
+    tr = rdata[rdata["time_id"].isin(train_tids)]
+    vl = rdata[rdata["time_id"].isin(val_tids)]
+
+    print(f"\nLightGBM — {regime_label.upper()} "
           f"({len(regime_ids)} stocks, {len(rdata):,} sessions)")
-    print(f"  time_id range: {tids[0]} → {tids[-1]}  |  ~{fold_size} time_ids per fold")
+    print(f"  time_id range: {tids[0]} → {tids[-1]}")
+    print(f"  Train: {len(train_tids)} time_ids ({len(tr):,} sessions)  "
+          f"| Eval: {len(val_tids)} time_ids ({len(vl):,} sessions)")
 
-    for fold in range(N_FOLDS):
-        # Train = all earlier folds, val = current fold
-        tr = rdata[rdata["fold"] < fold]
-        vl = rdata[rdata["fold"] == fold]
+    if len(tr) == 0 or len(vl) == 0:
+        print("  Skipped — insufficient data for split.")
+        continue
 
-        if len(tr) == 0:
-            print(f"  Fold {fold+1}/{N_FOLDS} — skipped (no training data yet)")
-            continue
-        tr = rdata[rdata["fold"] != fold]
-        vl = rdata[rdata["fold"] == fold]
+    model = lgb.LGBMRegressor(
+        n_estimators=500, learning_rate=0.05, num_leaves=63,
+        min_child_samples=20, subsample=0.8, colsample_bytree=0.8,
+        reg_alpha=0.1, reg_lambda=0.1,
+        random_state=RANDOM_STATE, n_jobs=-1, verbose=-1,
+    )
+    model.fit(tr[FEATURE_COLS], tr["target_rv"])
 
-        model = lgb.LGBMRegressor(
-            n_estimators=500, learning_rate=0.05, num_leaves=63,
-            min_child_samples=20, subsample=0.8, colsample_bytree=0.8,
-            reg_alpha=0.1, reg_lambda=0.1,
-            random_state=RANDOM_STATE, n_jobs=-1, verbose=-1,
-        )
-        model.fit(tr[FEATURE_COLS], tr["target_rv"])
-        res = vl[["stock_id","time_id","mean_spread","target_rv","regime"]].copy()
-        res["pred_vol"] = model.predict(vl[FEATURE_COLS])
-        all_preds.append(res)
-        feat_imps.append(model.feature_importances_)
-        print(f"  Fold {fold+1}/{N_FOLDS} — {len(vl):,} sessions")
+    res = vl[["stock_id","time_id","mean_spread","target_rv","regime"]].copy()
+    res["pred_vol"] = model.predict(vl[FEATURE_COLS])
+    all_preds.append(res)
+    feat_imps.append(model.feature_importances_)
+    print(f"  Done. Eval sessions: {len(vl):,}")
 
 
 # ── Evaluate and save ─────────────────────────────────────────────────────────
@@ -231,7 +240,7 @@ per_stock = (results
              .reset_index().sort_values("median_QLIKE"))
 
 feat_imp = (pd.DataFrame({"feature": FEATURE_COLS,
-                           "importance": np.mean(feat_imps, axis=0)})
+                           "importance": np.mean(feat_imps, axis=0)})  # avg across regime models
             .sort_values("importance", ascending=False))
 
 results[["stock_id","time_id","regime","mean_spread",
@@ -352,7 +361,7 @@ fig.patch.set_facecolor("white")
 top12 = feat_imp.head(12)
 ax.barh(top12["feature"][::-1], top12["importance"][::-1],
         color=C_LGBM, alpha=0.8, edgecolor="white")
-style_ax(ax, title="LightGBM Feature Importance — Top 12  (averaged across folds)",
+style_ax(ax, title="LightGBM Feature Importance — Top 12  (averaged across regimes)",
          xlabel="Importance (split count)")
 ax.grid(axis="x", color=SPINE, linewidth=0.4, linestyle="--")
 ax.grid(axis="y", linestyle="none")
