@@ -423,10 +423,10 @@ fig.suptitle(
     "\"Which model is appropriate under the current liquidity regime?\"",
     fontsize=13, fontweight="700", y=1.01
 )
-gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.48, wspace=0.35)
+gs = gridspec.GridSpec(2, 6, figure=fig, hspace=0.48, wspace=0.35)
 
 # ── top-left: median QLIKE by regime (bar) ───────────────────────────────────
-ax1 = fig.add_subplot(gs[0, :2])
+ax1 = fig.add_subplot(gs[0, :4])
 med_re = df.groupby("regime")[["garch","egarchx","har","lgbm"]].median().reindex(REGIME_ORDER)
 x  = np.arange(len(REGIME_ORDER))
 w  = 0.19
@@ -446,7 +446,7 @@ style_ax(ax1, title="Median QLIKE by Regime and Model  (lower = better)",
          ylabel="Median QLIKE")
 
 # ── top-right: pie — how often does regime routing agree with data? ───────────
-ax2 = fig.add_subplot(gs[0, 2])
+ax2 = fig.add_subplot(gs[0, 4:])
 correct   = df["routing_correct"].sum()
 incorrect = len(df) - correct
 ax2.pie([correct, incorrect],
@@ -460,7 +460,7 @@ ax2.set_title("Regime routing: theory vs. data\n(across all 60 stocks)",
               fontsize=9, fontweight="600")
 
 # ── bottom-left: winner counts per regime (stacked) ──────────────────────────
-ax3 = fig.add_subplot(gs[1, 0])
+ax3 = fig.add_subplot(gs[1, :3])
 winner_mat = pd.crosstab(df["regime"], df["winner"]).reindex(REGIME_ORDER)
 winner_mat = winner_mat.reindex(columns=model_keys, fill_value=0)
 bottom = np.zeros(3)
@@ -480,7 +480,7 @@ style_ax(ax3, title="Which model wins per stock?",
 ax3.legend(fontsize=7.5, loc="upper right", framealpha=0.9)
 
 # ── bottom-mid: LGBM vs GARCH improvement by regime ─────────────────────────
-ax4 = fig.add_subplot(gs[1, 1])
+ax4 = fig.add_subplot(gs[1, 3:])
 for regime in REGIME_ORDER:
     sub = df[df["regime"] == regime]["lgbm_vs_garch"].dropna()
     ax4.boxplot(sub.values, positions=[REGIME_ORDER.index(regime)],
@@ -503,31 +503,6 @@ ax4.text(0.5, 0.88, "↓ LGBM wins", transform=ax4.transAxes,
 style_ax(ax4, title="LightGBM advantage over GARCH",
          ylabel="LGBM QLIKE − GARCH QLIKE", legend=False)
 
-# ── bottom-right: blowup rate ─────────────────────────────────────────────────
-ax5 = fig.add_subplot(gs[1, 2])
-if not blowups.empty and "stock_id" in blowups.columns:
-    blowup_by_stock = blowups.groupby("stock_id").size().reset_index(name="n_blowups")
-    blowup_by_stock["regime"] = blowup_by_stock["stock_id"].map(lmap)
-    blowup_by_stock = blowup_by_stock[blowup_by_stock["stock_id"].isin(sel["all"])]
-    bp_data = [blowup_by_stock[blowup_by_stock["regime"]==r]["n_blowups"].values
-               for r in REGIME_ORDER]
-    bp_data = [d if len(d) > 0 else np.array([0]) for d in bp_data]
-    bp2 = ax5.boxplot(bp_data, patch_artist=True,
-                      labels=[r.capitalize() for r in REGIME_ORDER],
-                      medianprops=dict(color="white", linewidth=2),
-                      whiskerprops=dict(color=C["spine"]),
-                      capprops=dict(color=C["spine"]),
-                      flierprops=dict(marker="o", markersize=3,
-                                      markerfacecolor=C["spine"], alpha=0.4),
-                      widths=0.45)
-    for patch, regime in zip(bp2["boxes"], REGIME_ORDER):
-        patch.set_facecolor(C[regime]); patch.set_alpha(0.75)
-    style_ax(ax5, title="GARCH blowups per stock\n(justifies HAR-RV/LGBM fallback)",
-             ylabel="# blowup time-buckets", legend=False)
-else:
-    ax5.text(0.5, 0.5, "Blowup data\nnot available",
-             ha="center", va="center", transform=ax5.transAxes, color="#888")
-    style_ax(ax5, title="GARCH blowups per stock")
 
 plt.savefig(os.path.join(OUT, "fig6_regime_summary_panel.png"),
             dpi=160, bbox_inches="tight")
