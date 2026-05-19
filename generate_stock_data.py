@@ -44,6 +44,8 @@ def make_hist(vals, n_bins=60):
         "mean":   round(float(vals.mean()), 5),
         "median": round(float(np.median(vals)), 5),
         "p10":    round(float(np.percentile(vals, 10)), 5),
+        "p25":    round(float(np.percentile(vals, 25)), 5),
+        "p75":    round(float(np.percentile(vals, 75)), 5),
         "p90":    round(float(np.percentile(vals, 90)), 5),
         "min":    round(float(vals.min()), 5),
         "max":    round(float(vals.max()), 5),

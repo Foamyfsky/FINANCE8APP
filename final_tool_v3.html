@@ -2056,6 +2056,26 @@ function buildBasBars(s) {
   }).join('');
 }
 
+// ── Distribution strip (boxplot-style, track = p10→p90) ─────────────────────
+function buildDistStrip(p10V, p25V, medV, p75V, p90V, meanV, color) {
+  const range = p90V - p10V;
+  if (!range || !isFinite(range)) return '<div style="height:46px;"></div>';
+  const pct = v => Math.min(100, Math.max(0, (v - p10V) / range * 100)).toFixed(2);
+  const boxW = Math.min(100, Math.max(0.5, (p75V - p25V) / range * 100)).toFixed(2);
+  const fmt  = v => isFinite(v) ? v.toFixed(2) : '—';
+  return `<div style="position:relative;padding-bottom:20px;user-select:none;">
+    <div style="position:relative;height:14px;background:rgba(255,255,255,.07);border-radius:7px;">
+      <div style="position:absolute;top:0;bottom:0;left:${pct(p25V)}%;width:${boxW}%;background:${color}55;border:2px solid ${color};border-radius:5px;"></div>
+      <div style="position:absolute;top:-5px;bottom:-5px;left:${pct(medV)}%;width:3px;background:#ffffff;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 8px ${color};"></div>
+      <div style="position:absolute;top:50%;left:${pct(meanV)}%;width:12px;height:12px;background:#0f172a;border:2.5px solid ${color};border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 7px ${color};"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;">
+      <span style="font-family:ui-monospace,monospace;font-size:.75rem;font-weight:600;color:#cbd5e1;">p10: ${fmt(p10V)}</span>
+      <span style="font-family:ui-monospace,monospace;font-size:.75rem;font-weight:600;color:#cbd5e1;">p90: ${fmt(p90V)}</span>
+    </div>
+  </div>`;
+}
+
 function buildStockHTML(s) {
   const gr = REGIME_GUARDRAIL[s.regime];
   const isDisconnect = !s.theory_agrees;
@@ -2104,44 +2124,53 @@ function buildStockHTML(s) {
       </div>
     </div>
 
-    <!-- ╔═ DATA TABLE ═════════════════════════════════════════════════════════╗ -->
+    <!-- ╔═ DISTRIBUTION STRIPS ════════════════════════════════════════════════╗ -->
     <div style="padding:.875rem 1.5rem 1rem;">
 
-      <!-- Column headers -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1fr 1fr;gap:0 .75rem;margin-bottom:.3rem;">
-        <div></div>
-        <div style="text-align:right;color:#1e3a5f;font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">Mean</div>
-        <div style="text-align:right;color:#1e3a5f;font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">Median</div>
-        <div style="text-align:right;color:#1e3a5f;font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">p90</div>
+      <!-- Legend -->
+      <div style="display:flex;align-items:center;gap:.875rem;margin-bottom:.875rem;padding-bottom:.5rem;border-bottom:1px solid rgba(255,255,255,.08);">
+        <span style="color:#64748b;font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Legend</span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;">
+          <span style="display:inline-block;width:22px;height:7px;background:rgba(148,163,184,.2);border:1px solid rgba(148,163,184,.5);border-radius:2px;"></span>
+          <span style="color:#94a3b8;font-size:.58rem;">IQR (25–75%)</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;">
+          <span style="display:inline-block;width:2px;height:11px;background:#94a3b8;border-radius:1px;"></span>
+          <span style="color:#94a3b8;font-size:.58rem;">median</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;">
+          <span style="display:inline-block;width:9px;height:9px;background:#0f172a;border:2px solid #94a3b8;border-radius:50%;"></span>
+          <span style="color:#94a3b8;font-size:.58rem;">mean</span>
+        </span>
       </div>
 
-      <!-- BAS row -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1fr 1fr;gap:0 .75rem;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.05);">
-        <div style="color:#334155;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-top:2px;">Bid-Ask Spread</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.875rem;font-weight:700;color:${regColor};">${fmtBps(s.bas_mean_bps)}</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.875rem;color:#94a3b8;">${fmtBps(s.bas_median_bps)}</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.75rem;color:#475569;">${s.bas_p90_bps!=null?s.bas_p90_bps.toFixed(2)+' bps':'—'}</div>
+      <!-- BAS strip -->
+      <div style="margin-bottom:1.1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem;">
+          <span style="color:#94a3b8;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Bid-Ask Spread (bps)</span>
+          <span id="bas-val-${s.id}" style="font-family:ui-monospace,monospace;font-size:.875rem;font-weight:700;color:${regColor};">loading…</span>
+        </div>
+        <div id="bas-strip-${s.id}"><div style="height:10px;background:rgba(255,255,255,.06);border-radius:5px;"></div></div>
       </div>
 
-      <!-- WAP row (async-filled) -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1fr 1fr;gap:0 .75rem;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.05);">
-        <div style="color:#334155;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-top:2px;">WAP Dev ×10⁴</div>
-        <div id="wap-mean-${s.id}" style="text-align:right;font-family:ui-monospace,monospace;font-size:.875rem;color:#64748b;">—</div>
-        <div id="wap-med-${s.id}"  style="text-align:right;font-family:ui-monospace,monospace;font-size:.875rem;color:#64748b;">—</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.75rem;color:#1e293b;">—</div>
+      <!-- WAP strip -->
+      <div style="margin-bottom:1.1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem;">
+          <span style="color:#94a3b8;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">WAP Deviation ×10⁴</span>
+          <span id="wap-val-${s.id}" style="font-family:ui-monospace,monospace;font-size:.875rem;color:#c4b5fd;">loading…</span>
+        </div>
+        <div id="wap-strip-${s.id}"><div style="height:10px;background:rgba(255,255,255,.06);border-radius:5px;"></div></div>
       </div>
 
-      <!-- Volatility row -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1fr 1fr;gap:0 .75rem;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.05);">
-        <div style="color:#334155;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-top:2px;">Volatility</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.75rem;color:#1e293b;">—</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.875rem;color:#94a3b8;">${s.vol_median?s.vol_median.toFixed(0):'—'}</div>
-        <div style="text-align:right;font-family:ui-monospace,monospace;font-size:.75rem;color:#1e293b;">—</div>
+      <!-- Volatility -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.08);">
+        <span style="color:#94a3b8;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Volatility — median RV</span>
+        <span style="font-family:ui-monospace,monospace;font-size:.9rem;font-weight:600;color:#cbd5e1;">${s.vol_median?s.vol_median.toFixed(0):'—'}</span>
       </div>
 
       <!-- Sessions footer -->
-      <div style="margin-top:.625rem;padding-top:.5rem;border-top:1px solid rgba(255,255,255,.04);display:flex;justify-content:flex-end;">
-        <span style="font-size:.62rem;color:#1e3a5f;font-family:ui-monospace,monospace;">${s.n_time_ids?s.n_time_ids.toLocaleString():'-'} sessions</span>
+      <div style="margin-top:.625rem;padding-top:.5rem;border-top:1px solid rgba(255,255,255,.05);display:flex;justify-content:flex-end;">
+        <span style="font-size:.65rem;color:#64748b;font-family:ui-monospace,monospace;">${s.n_time_ids?s.n_time_ids.toLocaleString():'-'} sessions</span>
       </div>
     </div>
   </div>`;
@@ -2494,12 +2523,21 @@ async function initStockHistogram(stockId) {
     if (loading) loading.innerHTML = '<p class="text-xs" style="color:#64748b;">Distribution data not found. Run generate_stock_data.py first.</p>';
     return;
   }
-  // Patch WAP deviation stats into the liqCard
-  const fmtWap = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(3) : '—';
-  const wapMeanEl = document.getElementById('wap-mean-'+stockId);
-  const wapMedEl  = document.getElementById('wap-med-'+stockId);
-  if (wapMeanEl) wapMeanEl.textContent = fmtWap(data.wap.mean);
-  if (wapMedEl)  wapMedEl.textContent  = fmtWap(data.wap.median);
+  // Draw distribution strips in liqCard
+  const stk = STOCKS.find(x => x.id === stockId);
+  const rColor = stk ? (stk.regime==='liquid'?'#10b981':stk.regime==='illiquid'?'#f43f5e':'#f59e0b') : '#64748b';
+
+  const basValEl   = document.getElementById('bas-val-'+stockId);
+  const basStripEl = document.getElementById('bas-strip-'+stockId);
+  if (basValEl)   basValEl.textContent   = data.bas.mean.toFixed(2) + ' bps';
+  if (basStripEl) basStripEl.innerHTML   = buildDistStrip(data.bas.p10, data.bas.p25, data.bas.median, data.bas.p75, data.bas.p90, data.bas.mean, rColor);
+
+  const wapValEl   = document.getElementById('wap-val-'+stockId);
+  const wapStripEl = document.getElementById('wap-strip-'+stockId);
+  const fmtW = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(3) : '—';
+  if (wapValEl)   wapValEl.textContent   = fmtW(data.wap.mean);
+  if (wapStripEl) wapStripEl.innerHTML   = buildDistStrip(data.wap.p10, data.wap.p25, data.wap.median, data.wap.p75, data.wap.p90, data.wap.mean, '#a78bfa');
+
   renderHistogram(stockId, _histMode[stockId] || 'bas');
 }
 
