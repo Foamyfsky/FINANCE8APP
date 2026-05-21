@@ -266,7 +266,7 @@
       <div style="height:300px"><canvas id="chart-qlike-compare"></canvas></div>
     </div>
     <div class="card p-4">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Empirical Winner Distribution</h3>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Winner Distribution</h3>
       <div style="height:300px"><canvas id="chart-winner-pie"></canvas></div>
     </div>
   </div>
@@ -293,7 +293,7 @@
             <th class="sort-btn" onclick="sortLeaderboard('id')">Stock ID ↕</th>
             <th>Regime</th>
             <th>Theory Model</th>
-            <th>Empirical Winner</th>
+            <th>Winner</th>
             <th>Agrees?</th>
             <th class="sort-btn" onclick="sortLeaderboard('garch_qlike')">GARCH QLIKE ↕</th>
             <th class="sort-btn" onclick="sortLeaderboard('rec_qlike')">Winner QLIKE ↕</th>
@@ -369,16 +369,6 @@
         </div>
       </div>
 
-      <!-- Sample CSV generator -->
-      <div class="card p-4">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Generate Sample CSV</h3>
-        <p class="text-xs text-slate-400 mb-3">Download a synthetic test session to try the evaluator.</p>
-        <div class="flex gap-2">
-          <button onclick="downloadSampleCSV('liquid')" class="flex-1 text-xs py-2 rounded-lg bg-emerald-900/30 border border-emerald-700 text-emerald-400 hover:bg-emerald-900/50 transition">Liquid</button>
-          <button onclick="downloadSampleCSV('mixed')" class="flex-1 text-xs py-2 rounded-lg bg-amber-900/30 border border-amber-700 text-amber-400 hover:bg-amber-900/50 transition">Mixed</button>
-          <button onclick="downloadSampleCSV('illiquid')" class="flex-1 text-xs py-2 rounded-lg bg-rose-900/30 border border-rose-700 text-rose-400 hover:bg-rose-900/50 transition">Illiquid</button>
-        </div>
-      </div>
     </div>
 
     <!-- Results Panel -->
@@ -2187,7 +2177,7 @@ function buildStockHTML(s) {
         <p class="text-xs mt-1.5" style="color:#64748b;">regime-based rule</p>
       </div>
       <div class="stat-box" style="border-color:rgba(255,255,255,.1);">
-        <p class="text-xs mb-1.5" style="color:#94a3b8;">Empirical Winner</p>
+        <p class="text-xs mb-1.5" style="color:#94a3b8;">QLIKE Winner</p>
         ${modelPill(s.winner_model)}
         <p class="text-xs mt-1.5" style="color:#64748b;">lowest QLIKE</p>
       </div>
@@ -2739,15 +2729,19 @@ function filterQlikeChart(regime) {
     data:{
       labels: sorted.map(s=>s.id),
       datasets:[
-        { label:'GARCH Baseline',  data:sorted.map(s=>s.garch_qlike), backgroundColor:'#0891b255', borderColor:'#0891b2', borderWidth:1 },
-        { label:'Empirical Winner',data:sorted.map(s=>s.rec_qlike),   backgroundColor:'#10b98155', borderColor:'#10b981', borderWidth:1 },
-        { label:'LightGBM',        data:sorted.map(s=>s.lgbm_qlike),  backgroundColor:'#d9770655', borderColor:'#d97706', borderWidth:1 },
+        { label:'GJR-GARCH', data:sorted.map(s=>s.garch_qlike),   backgroundColor:'#0891b299', borderColor:'#0891b2', borderWidth:1 },
+        { label:'EGARCH-X',  data:sorted.map(s=>s.egarchx_qlike), backgroundColor:'#8b5cf699', borderColor:'#8b5cf6', borderWidth:1 },
+        { label:'HAR-RV',    data:sorted.map(s=>s.har_qlike),     backgroundColor:'#10b98199', borderColor:'#10b981', borderWidth:1 },
+        { label:'LightGBM',  data:sorted.map(s=>s.lgbm_qlike),   backgroundColor:'#f59e0b99', borderColor:'#f59e0b', borderWidth:1 },
       ]
     },
     options:{ responsive:true, maintainAspectRatio:false, scales:{
       x:{ ticks:{color:'#64748b',font:{size:9}}, grid:{color:'#1e293b'} },
       y:{ ticks:{color:'#64748b',font:{size:9}}, grid:{color:'#1e293b'} }
-    }, plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}}}
+    }, plugins:{
+      legend:{labels:{color:'#94a3b8',font:{size:10}}},
+      tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(4) : 'N/A (excluded)'}` } }
+    }}
   });
 }
 
@@ -2806,7 +2800,7 @@ function buildGlobalCharts() {
       labels:['Liquid','Illiquid','Mixed'],
       datasets:[
         { label:'GARCH Baseline', data:garchAvg, backgroundColor:'#0891b255', borderColor:'#0891b2', borderWidth:1 },
-        { label:'Empirical Winner', data:winAvg,  backgroundColor:'#10b98155', borderColor:'#10b981', borderWidth:1 },
+        { label:'Avg Winner QLIKE',  data:winAvg,  backgroundColor:'#10b98155', borderColor:'#10b981', borderWidth:1 },
         { label:'LightGBM', data:lgbmAvg, backgroundColor:'#d9770655', borderColor:'#d97706', borderWidth:1 },
       ]
     },
@@ -3200,15 +3194,19 @@ function buildModalChart(regime) {
     data:{
       labels: sorted.map(s=>s.id),
       datasets:[
-        { label:'GARCH Baseline',  data:sorted.map(s=>s.garch_qlike), backgroundColor:'#0891b255', borderColor:'#0891b2', borderWidth:1 },
-        { label:'Empirical Winner',data:sorted.map(s=>s.rec_qlike),   backgroundColor:'#10b98155', borderColor:'#10b981', borderWidth:1 },
-        { label:'LightGBM',        data:sorted.map(s=>s.lgbm_qlike),  backgroundColor:'#d9770655', borderColor:'#d97706', borderWidth:1 },
+        { label:'GJR-GARCH', data:sorted.map(s=>s.garch_qlike),   backgroundColor:'#0891b299', borderColor:'#0891b2', borderWidth:1 },
+        { label:'EGARCH-X',  data:sorted.map(s=>s.egarchx_qlike), backgroundColor:'#8b5cf699', borderColor:'#8b5cf6', borderWidth:1 },
+        { label:'HAR-RV',    data:sorted.map(s=>s.har_qlike),     backgroundColor:'#10b98199', borderColor:'#10b981', borderWidth:1 },
+        { label:'LightGBM',  data:sorted.map(s=>s.lgbm_qlike),   backgroundColor:'#f59e0b99', borderColor:'#f59e0b', borderWidth:1 },
       ]
     },
     options:{ responsive:true, maintainAspectRatio:false, scales:{
       x:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'#1e293b'} },
       y:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'#1e293b'} }
-    }, plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}} }
+    }, plugins:{
+      legend:{labels:{color:'#94a3b8',font:{size:11}}},
+      tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(4) : 'N/A (excluded)'}` } }
+    }}
   });
 }
 </script>
@@ -3219,8 +3217,7 @@ function buildModalChart(regime) {
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">Median QLIKE by Stock &amp; Model</h3>
       <div class="flex gap-1.5 items-center">
-        <button onclick="buildModalChart('all')"      class="filter-btn metric-badge border border-slate-600 text-slate-400">All</button>
-        <button onclick="buildModalChart('liquid')"   class="filter-btn metric-badge border border-slate-600 text-slate-400">Liquid</button>
+        <button onclick="buildModalChart('all')"      class="filter-btn metric-badge border border-sl        <button onclick="buildModalChart('liquid')"   class="filter-btn metric-badge border border-slate-600 text-slate-400">Liquid</button>
         <button onclick="buildModalChart('illiquid')" class="filter-btn metric-badge border border-slate-600 text-slate-400">Illiquid</button>
         <button onclick="buildModalChart('mixed')"    class="filter-btn metric-badge border border-slate-600 text-slate-400">Mixed</button>
         <button onclick="closeQlikeModal()" class="metric-badge border border-slate-600 text-slate-400 hover:text-white ml-2">&#x2715; Close</button>
