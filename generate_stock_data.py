@@ -1,18 +1,14 @@
 """
 generate_stock_data.py
-Generates compact histogram JSON files for the HTML dashboard.
+Patches existing stock JSON files to add/refresh all forecast models:
+  garch (GJR-GARCH), egarchx, har, lgbm
 
-Run once from the FINANCE8APP directory:
-    python generate_stock_data.py
-
-Output: m4_outputs/stock_data_json/stock_<ID>.json  (~4 KB each, 60 files total)
-Each JSON contains BAS and WAP histogram distributions across all time_ids for that stock.
+The BAS/WAP histograms are preserved from the existing JSONs.
+Run from the newproj directory: python generate_stock_data.py
 """
 import os, json
-import numpy as np
 import pandas as pd
 
-# 60 stocks from config.py
 SELECTED_STOCKS = [
     2, 3, 5, 6, 7, 9, 14, 15, 17, 18, 19, 26, 27, 29, 31, 32, 33, 37,
     39, 40, 41, 43, 44, 46, 47, 48, 50, 56, 59, 62, 64, 69, 70, 72, 75,
@@ -20,65 +16,75 @@ SELECTED_STOCKS = [
     112, 113, 116, 119, 120, 122, 123, 124, 125, 126
 ]
 
-HERE       = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR    = os.path.join(HERE, "m4_outputs", "stock_data_json")
-CSV_PATH   = os.path.join(HERE, "..", "optiver_aggregated.csv")
-
-os.makedirs(OUT_DIR, exist_ok=True)
-
-print(f"Loading {CSV_PATH}  (this may take a minute)...")
-df = pd.read_csv(
-    CSV_PATH,
-    usecols=["stock_id", "time_id", "WAP_mean", "BidAskSpread_mean"]
-)
-df["BAS_bps"] = df["BidAskSpread_mean"] * 10000
-print(f"  Loaded {len(df):,} rows. Processing {len(SELECTED_STOCKS)} stocks...\n")
+HERE      = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR   = os.path.join(HERE, "m4_outputs", "stock_data_json")
+STOCK_DIR = os.path.join(HERE, "m4_outputs")
+LGBM_CSV  = os.path.join(HERE, "m4_outputs", "lgbm_outputs", "lgbm_eval_results.csv")
 
 
-def make_hist(vals, n_bins=60):
-    counts, edges = np.histogram(vals, bins=n_bins)
-    centers = ((edges[:-1] + edges[1:]) / 2).round(6)
-    return {
-        "bins":   [round(float(c), 5) for c in centers],
-        "counts": counts.tolist(),
-        "mean":   round(float(vals.mean()), 5),
-        "median": round(float(np.median(vals)), 5),
-        "p10":    round(float(np.percentile(vals, 10)), 5),
-        "p25":    round(float(np.percentile(vals, 25)), 5),
-        "p75":    round(float(np.percentile(vals, 75)), 5),
-        "p90":    round(float(np.percentile(vals, 90)), 5),
-        "min":    round(float(vals.min()), 5),
-        "max":    round(float(vals.max()), 5),
-    }
+def load_bucketed(csv_path):
+    """CSV with (time_id, bucket_idx, pred_RV, actual_RV) -> one row per time_id."""
+    if not os.path.exists(csv_path):
+        return None
+    d = pd.read_csv(csv_path, usecols=["time_id", "pred_RV", "actual_RV"])
+    agg = d.groupby("time_id").agg(pred=("pred_RV","mean"), actual=("actual_RV","mean")).reset_index()
+    return [{"t": int(r.time_id), "pred": round(float(r.pred), 10), "actual": round(float(r.actual), 10)}
+            for r in agg.itertuples(index=False)]
 
 
+def load_simple(csv_path, pred_col="pred_RV", actual_col="actual_RV"):
+    """CSV with one row per time_id."""
+    if not os.path.exists(csv_path):
+        return None
+    d = pd.read_csv(csv_path, usecols=["time_id", pred_col, actual_col])
+    return [{"t": int(r[0]), "pred": round(float(r[1]), 10), "actual": round(float(r[2]), 10)}
+            for r in zip(d["time_id"], d[pred_col], d[actual_col])]
+
+
+# Pre-load LGBM
+print("Loading LGBM results...")
+lgbm_all = pd.read_csv(LGBM_CSV) if os.path.exists(LGBM_CSV) else None
+if lgbm_all is None:
+    print("  WARNING: lgbm_eval_results.csv not found")
+
+print(f"Patching {len(SELECTED_STOCKS)} stock JSONs...\n")
+
+ok = 0
 for sid in SELECTED_STOCKS:
-    sdf = df[df["stock_id"] == sid]
-    if sdf.empty:
-        print(f"  [SKIP] stock {sid}: no data")
+    json_path = os.path.join(OUT_DIR, f"stock_{sid}.json")
+    if not os.path.exists(json_path):
+        print(f"  [SKIP] stock {sid}: JSON not found")
         continue
 
-    # Aggregate across the 20 buckets → one value per time_id
-    tid = sdf.groupby("time_id").agg(
-        bas=("BAS_bps",  "mean"),
-        wap=("WAP_mean", "mean"),
-    )
-    # WAP deviation from 1.0 scaled ×10000 (Optiver normalises WAP ~1.0)
-    wap_dev = (tid["wap"].values - 1.0) * 10000
+    with open(json_path) as f:
+        existing = json.load(f)
 
-    out = {
-        "stock_id":   int(sid),
-        "n_time_ids": len(tid),
-        "bas":        make_hist(tid["bas"].values),
-        "wap":        make_hist(wap_dev),
-    }
+    folder = os.path.join(STOCK_DIR, f"stock_{sid}")
 
-    fpath = os.path.join(OUT_DIR, f"stock_{sid}.json")
-    with open(fpath, "w") as f:
-        json.dump(out, f, separators=(",", ":"))
+    gjr  = load_bucketed(os.path.join(folder, "garch_eval_results.csv"))
+    egx  = load_bucketed(os.path.join(folder, "egarchx_eval_results.csv"))
+    har  = load_simple(os.path.join(folder, "rosa_har_rv_eval_results.csv"))
 
-    print(f"  stock {sid:3d}: {len(tid):,} sessions  "
-          f"BAS mean={out['bas']['mean']:.2f} bps  "
-          f"WAP mean={out['wap']['mean']:.4f}  -> {os.path.basename(fpath)}")
+    lgbm = None
+    if lgbm_all is not None:
+        ldf = lgbm_all[lgbm_all["stock_id"] == sid]
+        if not ldf.empty:
+            lgbm = [{"t": int(r.time_id), "pred": round(float(r.pred_vol), 10), "actual": round(float(r.target_rv), 10)}
+                    for r in ldf.itertuples(index=False)]
 
-print(f"\nDone! Files in: {OUT_DIR}")
+    forecasts = {}
+    if gjr:  forecasts["garch"]   = gjr
+    if egx:  forecasts["egarchx"] = egx
+    if har:  forecasts["har"]     = har
+    if lgbm: forecasts["lgbm"]    = lgbm
+
+    existing["forecasts"] = forecasts
+
+    with open(json_path, "w") as f:
+        json.dump(existing, f, separators=(",",":"))
+
+    summary = " | ".join(f"{k}:{len(v)}" for k, v in forecasts.items())
+    print(f"  stock {sid:3d}: [{summary}]")
+    ok += 1
+
+print(f"\nPatched {ok}/{len(SELECTED_STOCKS)} stocks. Done!")

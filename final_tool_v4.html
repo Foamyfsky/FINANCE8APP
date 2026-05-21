@@ -2326,7 +2326,10 @@ function buildStockHTML(s) {
         <div style="display:flex;gap:.35rem;">
           <button onclick="renderForecastChart(${s.id},'garch')" id="fc-garch-${s.id}"
             class="text-xs px-2.5 py-1 rounded-lg border font-semibold transition"
-            style="background:rgba(8,145,178,.15);border-color:#0891b2;color:#67e8f9;">GARCH</button>
+            style="background:rgba(8,145,178,.15);border-color:#0891b2;color:#67e8f9;">GJR-GARCH</button>
+          <button onclick="renderForecastChart(${s.id},'egarchx')" id="fc-egarchx-${s.id}"
+            class="text-xs px-2.5 py-1 rounded-lg border font-semibold transition"
+            style="background:transparent;border-color:#334155;color:#64748b;">EGARCH-X</button>
           <button onclick="renderForecastChart(${s.id},'har')" id="fc-har-${s.id}"
             class="text-xs px-2.5 py-1 rounded-lg border font-semibold transition"
             style="background:transparent;border-color:#334155;color:#64748b;">HAR-RV</button>
@@ -2559,9 +2562,10 @@ const _fcCharts  = {};   // stockId → Chart instance
 const _fcState   = {};   // stockId → { model, view }
 
 const FC_COLORS = {
-  garch: { line:'#0891b2', bg:'rgba(8,145,178,.15)', btn:'rgba(8,145,178,.15)', border:'#0891b2', text:'#67e8f9' },
-  har:   { line:'#10b981', bg:'rgba(16,185,129,.15)', btn:'rgba(16,185,129,.15)', border:'#10b981', text:'#6ee7b7' },
-  lgbm:  { line:'#f59e0b', bg:'rgba(245,158,11,.15)', btn:'rgba(245,158,11,.15)', border:'#f59e0b', text:'#fcd34d' },
+  garch:   { line:'#0891b2', bg:'rgba(8,145,178,.15)',   btn:'rgba(8,145,178,.15)',   border:'#0891b2', text:'#67e8f9' },
+  egarchx: { line:'#8b5cf6', bg:'rgba(139,92,246,.15)',  btn:'rgba(139,92,246,.15)',  border:'#8b5cf6', text:'#c4b5fd' },
+  har:     { line:'#10b981', bg:'rgba(16,185,129,.15)',  btn:'rgba(16,185,129,.15)',  border:'#10b981', text:'#6ee7b7' },
+  lgbm:    { line:'#f59e0b', bg:'rgba(245,158,11,.15)',  btn:'rgba(245,158,11,.15)',  border:'#f59e0b', text:'#fcd34d' },
 };
 
 function initForecastChart(stockId) {
@@ -2570,6 +2574,19 @@ function initForecastChart(stockId) {
     const el = document.getElementById('fc-loading-'+stockId);
     if (el) el.innerHTML = '<p class="text-xs" style="color:#475569;">No forecast data available.</p>';
     return;
+  }
+  // Dim EGARCH-X button if no data for this stock
+  const egxBtn = document.getElementById('fc-egarchx-'+stockId);
+  if (egxBtn) {
+    if (!data.forecasts.egarchx) {
+      egxBtn.style.opacity = '0.3';
+      egxBtn.style.cursor  = 'not-allowed';
+      egxBtn.title = 'EGARCH-X not available for this stock (illiquid regime — model excluded)';
+    } else {
+      egxBtn.style.opacity = '';
+      egxBtn.style.cursor  = '';
+      egxBtn.title = '';
+    }
   }
   const defaultModel = data.forecasts.garch ? 'garch' : data.forecasts.har ? 'har' : 'lgbm';
   _fcState[stockId] = { model: defaultModel, view: 'lines' };
@@ -2603,7 +2620,7 @@ function renderForecastChart(stockId, model) {
   const view = _fcState[stockId].view || 'lines';
 
   // Update model button styles
-  ['garch','har','lgbm'].forEach(m => {
+  ['garch','egarchx','har','lgbm'].forEach(m => {
     const btn = document.getElementById('fc-' + m + '-' + stockId);
     if (!btn) return;
     const c = FC_COLORS[m];
@@ -3147,9 +3164,10 @@ function downloadSampleCSV(regime) {
   a.download = `sample_${regime}_session.csv`; a.click();
 }
 
-// ─────────────────────────────────────────────────
+
+// -------------------------------------------------
 // 9.  INIT
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
   filterStocks('all');
   updateThreshDisplay();
@@ -3157,12 +3175,11 @@ document.addEventListener('DOMContentLoaded', () => {
   buildLeaderboard();
 });
 
-// ── QLIKE modal ──────────────────────────────────────
+// -- QLIKE modal ----------------------------------
 let _qlModal = null;
 
 function openQlikeModal() {
   document.getElementById('qlike-modal').classList.remove('hidden');
-  // Rebuild chart inside the modal using the currently active regime
   const activeBtn = ['all','liquid','illiquid','mixed'].find(r =>
     document.getElementById('qbtn-' + r).className.includes('filter-active')
   ) || 'all';
@@ -3206,7 +3223,7 @@ function buildModalChart(regime) {
         <button onclick="buildModalChart('liquid')"   class="filter-btn metric-badge border border-slate-600 text-slate-400">Liquid</button>
         <button onclick="buildModalChart('illiquid')" class="filter-btn metric-badge border border-slate-600 text-slate-400">Illiquid</button>
         <button onclick="buildModalChart('mixed')"    class="filter-btn metric-badge border border-slate-600 text-slate-400">Mixed</button>
-        <button onclick="closeQlikeModal()" class="metric-badge border border-slate-600 text-slate-400 hover:text-white ml-2">✕ Close</button>
+        <button onclick="closeQlikeModal()" class="metric-badge border border-slate-600 text-slate-400 hover:text-white ml-2">&#x2715; Close</button>
       </div>
     </div>
     <div style="height:65vh"><canvas id="chart-qlike-modal"></canvas></div>
