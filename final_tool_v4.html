@@ -2317,39 +2317,6 @@ function buildStockHTML(s) {
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">${metricsCards}</div>
   </div>`;
 
-  // ── Session distribution card (fetched async after render) ─────────────────
-  const distCard = `
-  <div class="card p-5" id="dist-card-${s.id}">
-    <div class="flex items-center justify-between mb-3">
-      <div>
-        <h3 class="text-xs font-bold uppercase tracking-widest" style="color:#64748b;letter-spacing:.1em;">Session Distribution</h3>
-      </div>
-      <div class="flex gap-1.5" id="hist-toggle-${s.id}">
-        <button onclick="switchHistMode(${s.id},'bas')" id="btn-bas-${s.id}"
-          class="text-xs px-3 py-1.5 rounded-lg border font-semibold transition"
-          style="background:rgba(56,189,248,.15);border-color:#38bdf8;color:#7dd3fc;">
-          BAS
-        </button>
-        <button onclick="switchHistMode(${s.id},'wap')" id="btn-wap-${s.id}"
-          class="text-xs px-3 py-1.5 rounded-lg border font-semibold transition"
-          style="background:transparent;border-color:#334155;color:#64748b;">
-          WAP dev
-        </button>
-      </div>
-    </div>
-    <div id="hist-wrap-${s.id}" style="height:220px;position:relative;">
-      <div id="hist-loading-${s.id}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-        <p class="text-xs" style="color:#475569;">Loading distribution data…</p>
-      </div>
-      <canvas id="hist-canvas-${s.id}" style="display:none;"></canvas>
-    </div>
-    <div id="hist-stats-${s.id}" class="grid grid-cols-4 gap-2 mt-3" style="display:none!important;"></div>
-    <p class="text-xs font-semibold mt-2" style="color:#fde047;">
-      ⚠ Time IDs are <span style="text-decoration:underline">NON-SEQUENTIAL</span> trade-session identifiers — sorted ascending for display only.
-      <span style="color:#fbbf24;font-weight:400;"> WAP dev = (WAP − 1) × 10⁴ (Optiver normalises reference price to ~1.0).</span>
-    </p>
-  </div>`;
-
   // ── Forecast vs Actual card ────────────────────────────────────────────────
   const forecastCard = `
   <div class="card p-5" id="fc-card-${s.id}">
@@ -2417,7 +2384,6 @@ function buildStockHTML(s) {
       ${recCard}
     </div>
     ${metricsCard}
-    ${distCard}
     ${forecastCard}
     ${narrative}
   </div>`;
@@ -2574,7 +2540,6 @@ async function initStockHistogram(stockId) {
   if (wapValEl)   wapValEl.textContent   = fmtW(data.wap.mean);
   if (wapStripEl) wapStripEl.innerHTML   = buildDistStrip(data.wap.p10, data.wap.p25, data.wap.median, data.wap.p75, data.wap.p90, data.wap.mean, '#a78bfa');
 
-  renderHistogram(stockId, _histMode[stockId] || 'bas');
   initForecastChart(stockId);
 }
 
