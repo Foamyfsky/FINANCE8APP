@@ -132,15 +132,11 @@
       <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 0 16px rgba(16,185,129,.4);">V</div>
       <div>
         <h1 class="text-sm font-bold text-white leading-none tracking-tight">Regime Router</h1>
-        <p class="text-xs leading-none mt-0.5" style="color:#475569;">DATA3888 · Optiver Pipeline · 60 Stocks · 3 Regimes</p>
+        <p class="text-xs leading-none mt-0.5" style="color:#475569;">DATA3888 · 60 Stocks · 3 Regimes</p>
       </div>
     </div>
     <div class="flex items-center gap-4">
-      <div class="flex items-center gap-1.5 text-xs" style="color:#64748b;">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block anim-glow"></span>
-        Live Dashboard
-      </div>
-      <div class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,.05);color:#475569;border:1px solid rgba(255,255,255,.08);">v3.0 · 2026</div>
+
     </div>
   </div>
 </header>
@@ -214,21 +210,33 @@
           <span class="text-emerald-400 text-lg mt-0.5">✦</span>
           <div>
             <p class="text-sm font-semibold text-slate-200">Why 60% is the right number, and the remaining 40% is the real finding</p>
-            <p class="text-xs text-slate-400 mt-0.5">For liquid stocks, both GJR-GARCH and EGARCH-X are theoretically appropriate. GJR-GARCH wins empirically due to intraday session length constraints. EGARCH-X needs longer windows to stably identify the BAS coefficient. Both count as theory-aligned. Expanding the liquid recommendation to either GARCH-family model raises agreement to 60%.</p>
+            <ul class="text-xs text-slate-400 mt-1.5 space-y-1 list-none">
+              <li>· GJR-GARCH &amp; EGARCH-X are both valid for liquid stocks — counting either as theory-aligned gives 60%</li>
+              <li>· GJR-GARCH wins empirically; EGARCH-X needs longer windows to stabilise the BAS coefficient</li>
+              <li class="text-rose-400 font-semibold">· The 40% gap is entirely the illiquid regime: LightGBM beats HAR-RV 100% of the time</li>
+            </ul>
           </div>
         </div>
         <div class="flex items-start gap-2">
           <span class="text-amber-400 text-lg mt-0.5">◆</span>
           <div>
             <p class="text-sm font-semibold text-slate-200">Key finding by regime</p>
-            <p class="text-xs text-slate-400 mt-0.5">The 24 overrides are concentrated where it matters: all 20 illiquid stocks route to LightGBM instead of HAR-RV, and 4 mixed stocks route to GJR-GARCH instead of LightGBM. These are genuine surprises the pipeline catches.</p>
+            <ul class="text-xs text-slate-400 mt-1.5 space-y-1 list-none">
+              <li>· All 20 illiquid stocks: LightGBM overrides HAR-RV</li>
+              <li>· 4 mixed stocks: GJR-GARCH overrides LightGBM</li>
+              <li>· These are the pipeline's genuine surprises</li>
+            </ul>
           </div>
         </div>
         <div class="flex items-start gap-2">
           <span class="text-sky-400 text-lg mt-0.5">▸</span>
           <div>
-            <p class="text-sm font-semibold text-slate-200">The core thesis reframed</p>
-            <p class="text-xs text-slate-400 mt-0.5">The key finding is illiquid: LightGBM beats HAR-RV in every single illiquid stock. Sparse order books create non-linear RV dynamics that HAR-RV cannot capture. No parametric model assumption survives illiquid conditions.</p>
+            <p class="text-sm font-semibold text-slate-200">Core thesis reframed</p>
+            <ul class="text-xs text-slate-400 mt-1.5 space-y-1 list-none">
+              <li>· LightGBM beats HAR-RV on every illiquid stock — no exceptions</li>
+              <li>· Sparse order books create non-linear dynamics HAR-RV can't capture</li>
+              <li>· No parametric model survives illiquid conditions</li>
+            </ul>
           </div>
         </div>
       </div>
