@@ -131,8 +131,8 @@
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 0 16px rgba(16,185,129,.4);">V</div>
       <div>
-        <h1 class="text-sm font-bold text-white leading-none tracking-tight">Regime Router</h1>
-        <p class="text-xs leading-none mt-0.5" style="color:#475569;">DATA3888 · 60 Stocks · 3 Regimes</p>
+        <h1 class="text-sm font-bold text-white leading-none tracking-tight">FINANCE ADVICE</h1>
+        <p class="text-xs leading-none mt-0.5" style="color:#475569;">60 Stocks, 3 Regimes</p>
       </div>
     </div>
     <div class="flex items-center gap-4">
@@ -145,7 +145,10 @@
 <nav class="sticky top-14 z-40 border-b border-white/5" style="background:rgba(6,12,26,.75);backdrop-filter:blur(20px);">
   <div class="max-w-screen-xl mx-auto px-4">
     <div class="flex gap-1">
-      <button onclick="switchTab(1)" id="tab-btn-1" class="tab-btn active px-5 py-3 text-sm font-semibold">
+      <button onclick="switchTab(0)" id="tab-btn-0" class="tab-btn active px-5 py-3 text-sm font-semibold">
+        🏠 Overview
+      </button>
+      <button onclick="switchTab(1)" id="tab-btn-1" class="tab-btn px-5 py-3 text-sm font-semibold">
         📊 Stock Analysis
       </button>
       <button onclick="switchTab(2)" id="tab-btn-2" class="tab-btn px-5 py-3 text-sm font-semibold">
@@ -158,8 +161,94 @@
   </div>
 </nav>
 
+<!-- ═══════════════════ TAB 0: OVERVIEW ═══════════════════ -->
+<div id="tab-panel-0" class="tab-panel active" style="min-height:calc(100vh - 112px);">
+<div class="max-w-screen-lg mx-auto px-6 py-16 flex flex-col items-center justify-center" style="min-height:calc(100vh - 112px);">
+
+  <!-- Kicker -->
+  <p style="font-size:.9rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:1rem;">DATA3888 - Group 8</p>
+
+  <!-- Title -->
+  <h1 style="font-size:clamp(2rem,5vw,3.5rem);font-weight:900;text-align:center;line-height:1.1;color:#f1f5f9;margin-bottom:1.25rem;letter-spacing:-.02em;">
+    One Model Doesn't<br><span class="grad-text-emerald">Fit All Markets</span>
+  </h1>
+
+  <!-- Subtitle -->
+  <p style="font-size:1.05rem;color:#94a3b8;text-align:center;max-width:540px;line-height:1.7;margin-bottom:3rem;">
+    We evaluated <strong style="color:#e2e8f0;">4 volatility models</strong> across <strong style="color:#e2e8f0;">60 stocks</strong> and found that the best model depends on the stock's liquidity.
+  </p>
+
+  <!-- 3 Regime Cards -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;width:100%;max-width:820px;margin-bottom:3rem;">
+
+    <!-- Liquid -->
+    <div class="card p-6 liq-glow-liquid" style="border:1px solid rgba(16,185,129,.3);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.75rem;">💧</div>
+      <p style="font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#10b981;margin-bottom:.4rem;">Liquid</p>
+      <p style="font-size:.85rem;color:#94a3b8;margin-bottom:1.25rem;line-height:1.5;">Tight spreads, active order book</p>
+      <div style="border-top:1px solid rgba(16,185,129,.15);padding-top:1rem;">
+        <p style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-bottom:.35rem;">Best Model</p>
+        <span class="model-pill pill-egarchx" style="font-size:.8rem;padding:.3rem .9rem;">EGARCH-X</span>
+      </div>
+    </div>
+
+    <!-- Illiquid -->
+    <div class="card p-6 liq-glow-illiquid" style="border:1px solid rgba(244,63,94,.3);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.75rem;">🏜️</div>
+      <p style="font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#f43f5e;margin-bottom:.4rem;">Illiquid</p>
+      <p style="font-size:.85rem;color:#94a3b8;margin-bottom:1.25rem;line-height:1.5;">Wide spreads, thin order book</p>
+      <div style="border-top:1px solid rgba(244,63,94,.15);padding-top:1rem;">
+        <p style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-bottom:.35rem;">Best Model</p>
+        <span class="model-pill pill-har" style="font-size:.8rem;padding:.3rem .9rem;">HAR-RV</span>
+      </div>
+    </div>
+
+    <!-- Mixed -->
+    <div class="card p-6 liq-glow-mixed" style="border:1px solid rgba(245,158,11,.3);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.75rem;">⚡</div>
+      <p style="font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#f59e0b;margin-bottom:.4rem;">Mixed</p>
+      <p style="font-size:.85rem;color:#94a3b8;margin-bottom:1.25rem;line-height:1.5;">Variable conditions, regime-shifting</p>
+      <div style="border-top:1px solid rgba(245,158,11,.15);padding-top:1rem;">
+        <p style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-bottom:.35rem;">Best Model</p>
+        <span class="model-pill pill-lgbm" style="font-size:.8rem;padding:.3rem .9rem;">LightGBM</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom stat strip -->
+  <div style="display:flex;gap:2.5rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:2.5rem;">
+    <div style="text-align:center;">
+      <p style="font-size:2.2rem;font-weight:900;color:#f1f5f9;line-height:1;">60</p>
+      <p style="font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-top:.2rem;">Stocks</p>
+    </div>
+    <div style="width:1px;height:36px;background:rgba(255,255,255,.08);"></div>
+    <div style="text-align:center;">
+      <p style="font-size:2.2rem;font-weight:900;color:#f1f5f9;line-height:1;">4</p>
+      <p style="font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-top:.2rem;">Models</p>
+    </div>
+    <div style="width:1px;height:36px;background:rgba(255,255,255,.08);"></div>
+    <div style="text-align:center;">
+      <p style="font-size:2.2rem;font-weight:900;color:#f1f5f9;line-height:1;">3</p>
+      <p style="font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-top:.2rem;">Regimes</p>
+    </div>
+    <div style="width:1px;height:36px;background:rgba(255,255,255,.08);"></div>
+    <div style="text-align:center;">
+      <p style="font-size:2.2rem;font-weight:900;color:#f1f5f9;line-height:1;">QLIKE</p>
+      <p style="font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#475569;margin-top:.2rem;">Evaluation Metric</p>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <button onclick="switchTab(1)" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-weight:700;font-size:.9rem;padding:.75rem 2rem;border-radius:9999px;border:none;cursor:pointer;box-shadow:0 0 24px rgba(16,185,129,.35);letter-spacing:.02em;">
+    Explore the Data →
+  </button>
+
+</div>
+</div>
+
 <!-- ═══════════════════ TAB 1: STOCK ANALYSIS ═══════════════════ -->
-<div id="tab-panel-1" class="tab-panel active">
+<div id="tab-panel-1" class="tab-panel">
 <div class="max-w-screen-xl mx-auto px-4 py-6">
 
   <!-- Selector Row -->
@@ -184,7 +273,7 @@
   <!-- Stock Content Area -->
   <div id="stock-content">
     <div class="card p-12 text-center" style="border:1px solid rgba(16,185,129,.1);">
-      <img src="stonk.webp" alt="Select a stock" class="w-60 h-60 object-contain mx-auto mb-5 opacity-80" style="filter:drop-shadow(0 0 28px rgba(16,185,129,.38));">
+      <img src="stonk.webp" alt="Select a stock" class="object-contain mx-auto mb-5 opacity-80" style="width:420px;height:420px;filter:drop-shadow(0 0 28px rgba(16,185,129,.38));">
       <p class="text-slate-300 text-sm font-medium">Select a stock above to view regime analysis, model recommendations &amp; performance metrics.</p>
     </div>
   </div>
@@ -284,7 +373,7 @@
   <div class="card p-4">
     <div class="flex items-center justify-between mb-3">
       <div>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">LightGBM — Feature Importance</h3>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">LightGBM Feature Importance</h3>
         <p class="text-xs text-slate-500 mt-0.5">Top 10 predictors &nbsp;·&nbsp; <span class="text-amber-400 font-bold">■</span> spread / liquidity &nbsp; <span class="text-sky-400 font-bold">■</span> realised volatility</p>
       </div>
     </div>
@@ -1898,9 +1987,11 @@ const REGIME_GUARDRAIL = {
 // 2.  TAB SWITCHING
 // ─────────────────────────────────────────────────
 function switchTab(n) {
-  [1,2,3].forEach(i => {
-    document.getElementById('tab-panel-'+i).classList.toggle('active', i===n);
-    document.getElementById('tab-btn-'+i).classList.toggle('active', i===n);
+  [0,1,2,3].forEach(i => {
+    const panel = document.getElementById('tab-panel-'+i);
+    const btn   = document.getElementById('tab-btn-'+i);
+    if (panel) { panel.classList.toggle('active', i===n); panel.style.display = i===n ? '' : 'none'; }
+    if (btn)   btn.classList.toggle('active', i===n);
   });
   if (n===2 && !window._chartsBuilt) { buildGlobalCharts(); window._chartsBuilt=true; }
 }
