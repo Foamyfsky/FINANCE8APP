@@ -2736,11 +2736,30 @@ function filterQlikeChart(regime) {
       ]
     },
     options:{ responsive:true, maintainAspectRatio:false, scales:{
-      x:{ ticks:{color:'#64748b',font:{size:9}}, grid:{color:'#1e293b'} },
+      x:{ ticks:{
+            color: ctx => {
+              const s = sorted[ctx.index];
+              if (!s) return '#64748b';
+              return s.regime==='liquid' ? '#10b981' : s.regime==='illiquid' ? '#f43f5e' : '#f59e0b';
+            },
+            font: ctx => {
+              const s = sorted[ctx.index];
+              return { size:9, weight: s ? 'bold' : 'normal' };
+            }
+          },
+          grid:{color:'#1e293b'} },
       y:{ ticks:{color:'#64748b',font:{size:9}}, grid:{color:'#1e293b'} }
     }, plugins:{
       legend:{labels:{color:'#94a3b8',font:{size:10}}},
-      tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(4) : 'N/A (excluded)'}` } }
+      tooltip:{ callbacks:{
+        title: items => {
+          const s = sorted[items[0].dataIndex];
+          if (!s) return `Stock ${items[0].label}`;
+          const reg = s.regime.charAt(0).toUpperCase() + s.regime.slice(1);
+          return `Stock ${s.id}  ·  ${reg}`;
+        },
+        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(4) : 'N/A (excluded)'}`
+      }}
     }}
   });
 }
