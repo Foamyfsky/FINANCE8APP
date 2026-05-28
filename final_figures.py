@@ -1,6 +1,6 @@
 """
-final_figures.py  —  DATA3888 Group 8
-======================================
+final_figures.py - DATA3888 Group 8
+
 Research question:
   "Instead of asking which forecasting model is best for every stock,
    we ask: which model is APPROPRIATE under the current liquidity regime?"
@@ -32,29 +32,27 @@ from contextlib import redirect_stdout
 
 warnings.filterwarnings("ignore")
 
-# ── paths ─────────────────────────────────────────────────────────────────────
 HERE = os.path.dirname(os.path.abspath(__file__))
-M4   = os.path.join(HERE, "m4_outputs")
-OUT  = os.path.join(M4, "final_figures")
+M4 = os.path.join(HERE, "m4_outputs")
+OUT = os.path.join(M4, "final_figures")
 os.makedirs(OUT, exist_ok=True)
 
 sys.path.insert(0, HERE)
 with redirect_stdout(io.StringIO()):
     from config import get_selected_stocks, get_liquidity_map
-    sel  = get_selected_stocks()
+    sel = get_selected_stocks()
     lmap = get_liquidity_map()
 
-# ── palette ───────────────────────────────────────────────────────────────────
 C = {
-    "garch":   "#378ADD",
-    "egarchx": "#1D9E75",
-    "har":     "#D85A30",
-    "lgbm":    "#8B5CF6",
-    "liquid":  "#1D9E75",
-    "illiquid":"#D85A30",
-    "mixed":   "#8B5CF6",
-    "spine":   "#D3D1C7",
-    "bg":      "white",
+    "garch":    "#378ADD",
+    "egarchx":  "#1D9E75",
+    "har":      "#D85A30",
+    "lgbm":     "#8B5CF6",
+    "liquid":   "#1D9E75",
+    "illiquid": "#D85A30",
+    "mixed":    "#8B5CF6",
+    "spine":    "#D3D1C7",
+    "bg":       "white",
 }
 MODEL_LABELS = {
     "garch":   "GARCH(1,1)",
@@ -64,39 +62,39 @@ MODEL_LABELS = {
 }
 REGIME_ORDER = ["liquid", "mixed", "illiquid"]
 
-# ── load data ─────────────────────────────────────────────────────────────────
+
 def load(fname):
     p = os.path.join(M4, fname)
     return pd.read_csv(p) if os.path.exists(p) else pd.DataFrame()
 
-garch_s   = load("all_stocks_garch_summary.csv")
+garch_s = load("all_stocks_garch_summary.csv")
 egarchx_s = load("all_stocks_egarchx_summary.csv")
-har_s     = load("all_stocks_har_rv_summary.csv")
-lgbm_s    = load("lgbm_outputs/lgbm_per_stock.csv")
-profile   = load("har_rv_stock_liquidity_profile.csv")
-blowups   = load("global_blowup_report.csv")
+har_s = load("all_stocks_har_rv_summary.csv")
+lgbm_s = load("lgbm_outputs/lgbm_per_stock.csv")
+profile = load("har_rv_stock_liquidity_profile.csv")
+blowups = load("global_blowup_report.csv")
 
-# ── build master per-stock dataframe ─────────────────────────────────────────
+# Build master per-stock dataframe
 rows = []
 for sid in sel["all"]:
     regime = lmap.get(sid, "mixed")
     r = {"stock_id": sid, "regime": regime}
 
     g = garch_s[garch_s["stock_id"] == sid]
-    r["garch"]   = g["median_QLIKE"].values[0]   if not g.empty else np.nan
+    r["garch"] = g["median_QLIKE"].values[0] if not g.empty else np.nan
 
     e = egarchx_s[egarchx_s["stock_id"] == sid]
-    r["egarchx"] = e["median_QLIKE"].values[0]   if not e.empty else np.nan
+    r["egarchx"] = e["median_QLIKE"].values[0] if not e.empty else np.nan
 
     h = har_s[har_s["stock_id"] == sid]
-    r["har"]     = h["median_QLIKE"].values[0]   if not h.empty else np.nan
+    r["har"] = h["median_QLIKE"].values[0] if not h.empty else np.nan
 
     l = lgbm_s[lgbm_s["stock_id"] == sid]
-    r["lgbm"]    = l["median_QLIKE"].values[0]   if not l.empty else np.nan
+    r["lgbm"] = l["median_QLIKE"].values[0] if not l.empty else np.nan
 
     p = profile[profile["stock_id"] == sid]
-    r["median_bas"]  = p["median_bas"].values[0]  if not p.empty else np.nan
-    r["liquid_pct"]  = p["liquid_pct"].values[0]  if not p.empty else np.nan
+    r["median_bas"] = p["median_bas"].values[0] if not p.empty else np.nan
+    r["liquid_pct"] = p["liquid_pct"].values[0] if not p.empty else np.nan
 
     # which model wins for this stock? (lowest QLIKE)
     candidates = {k: r[k] for k in ["garch","egarchx","har","lgbm"] if np.isfinite(r.get(k, np.nan))}
@@ -112,9 +110,7 @@ for sid in sel["all"]:
 
 df = pd.DataFrame(rows)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  HELPER
-# ─────────────────────────────────────────────────────────────────────────────
+
 def style_ax(ax, title="", xlabel="", ylabel="", legend=True):
     ax.set_facecolor(C["bg"])
     for sp in ax.spines.values():
@@ -122,17 +118,15 @@ def style_ax(ax, title="", xlabel="", ylabel="", legend=True):
     ax.tick_params(labelsize=8.5, color=C["spine"])
     ax.grid(axis="y", color=C["spine"], linewidth=0.4, linestyle="--", alpha=0.6)
     ax.set_axisbelow(True)
-    if title:   ax.set_title(title, fontsize=10, fontweight="600", pad=7)
-    if xlabel:  ax.set_xlabel(xlabel, fontsize=8.5, color="#5F5E5A")
-    if ylabel:  ax.set_ylabel(ylabel, fontsize=8.5, color="#5F5E5A")
+    if title:  ax.set_title(title, fontsize=10, fontweight="600", pad=7)
+    if xlabel: ax.set_xlabel(xlabel, fontsize=8.5, color="#5F5E5A")
+    if ylabel: ax.set_ylabel(ylabel, fontsize=8.5, color="#5F5E5A")
     if legend and ax.get_legend_handles_labels()[0]:
         ax.legend(fontsize=7.5, framealpha=0.85, edgecolor=C["spine"])
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 1 — Regime × Model QLIKE heatmap  (the "routing logic" figure)
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 1 — regime × model heatmap …")
+# Fig 1 - Regime x Model QLIKE heatmap (the "routing logic" figure)
+print("Building Fig 1 - regime x model heatmap ...")
 
 med = df.groupby("regime")[["garch","egarchx","har","lgbm"]].median()
 med = med.reindex(REGIME_ORDER)
@@ -142,14 +136,14 @@ fig, axes = plt.subplots(1, 2, figsize=(13, 4.5),
                           gridspec_kw={"width_ratios":[2, 1]})
 fig.patch.set_facecolor(C["bg"])
 fig.suptitle(
-    "Regime × Model Performance  (median QLIKE — lower is better)",
+    "Regime x Model Performance  (median QLIKE - lower is better)",
     fontsize=12, fontweight="600", y=1.01
 )
 
 # left: grouped bar
 ax = axes[0]
-x   = np.arange(len(REGIME_ORDER))
-w   = 0.19
+x = np.arange(len(REGIME_ORDER))
+w = 0.19
 colors = [C["garch"], C["egarchx"], C["har"], C["lgbm"]]
 for i, (col, col_c) in enumerate(zip(med.columns, colors)):
     vals = med[col].values
@@ -161,12 +155,12 @@ for i, (col, col_c) in enumerate(zip(med.columns, colors)):
 
 ax.set_xticks(x)
 ax.set_xticklabels([r.capitalize() for r in REGIME_ORDER], fontsize=9)
-style_ax(ax, ylabel="Median QLIKE", title="All 60 stocks — median per model × regime")
+style_ax(ax, ylabel="Median QLIKE", title="All 60 stocks - median per model x regime")
 
 # annotate the winner per regime
 regime_winners = {"liquid":"GARCH(1,1)", "illiquid":"LightGBM", "mixed":"LightGBM"}
 for xi, regime in enumerate(REGIME_ORDER):
-    ax.annotate(f"← {regime_winners[regime]} wins",
+    ax.annotate(f"<- {regime_winners[regime]} wins",
                 xy=(xi, med.loc[regime].min()),
                 xytext=(xi, med.loc[regime].min() - 0.25),
                 ha="center", fontsize=7, color="#333", fontstyle="italic")
@@ -174,7 +168,6 @@ for xi, regime in enumerate(REGIME_ORDER):
 # right: heatmap
 ax2 = axes[1]
 heat = med.values.copy()
-# mask NaN for display
 masked = np.ma.masked_invalid(heat)
 im = ax2.imshow(masked, cmap="RdYlGn", aspect="auto",
                 vmin=np.nanmin(heat)-0.1, vmax=np.nanmax(heat)+0.1)
@@ -197,25 +190,23 @@ plt.colorbar(im, ax=ax2, shrink=0.8, label="Median QLIKE")
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, "fig1_regime_model_heatmap.png"), dpi=160, bbox_inches="tight")
 plt.close()
-print("  ✓ fig1")
+print("  done fig1")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 2 — Per-stock QLIKE bars, grouped by regime
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 2 — per-stock QLIKE …")
+# Fig 2 - Per-stock QLIKE bars, grouped by regime
+print("Building Fig 2 - per-stock QLIKE ...")
 
 fig, axes = plt.subplots(3, 1, figsize=(18, 14))
 fig.patch.set_facecolor(C["bg"])
 fig.suptitle(
-    "Per-Stock Model Comparison — QLIKE by Liquidity Regime\n"
+    "Per-Stock Model Comparison - QLIKE by Liquidity Regime\n"
     "(lower = better forecast accuracy)",
     fontsize=12, fontweight="600", y=1.005
 )
 
-model_keys   = ["garch","egarchx","har","lgbm"]
+model_keys = ["garch","egarchx","har","lgbm"]
 model_colors = [C["garch"], C["egarchx"], C["har"], C["lgbm"]]
-model_names  = [MODEL_LABELS[k] for k in model_keys]
+model_names = [MODEL_LABELS[k] for k in model_keys]
 
 for ax, regime in zip(axes, REGIME_ORDER):
     sub = df[df["regime"] == regime].sort_values("stock_id")
@@ -230,7 +221,7 @@ for ax, regime in zip(axes, REGIME_ORDER):
     # highlight winner per stock with a star
     for xi, (_, row) in enumerate(sub.iterrows()):
         winner_q = row[row["winner"]]
-        ax.annotate("★", xy=(xi + (model_keys.index(row["winner"])-1.5)*w, winner_q),
+        ax.annotate("*", xy=(xi + (model_keys.index(row["winner"])-1.5)*w, winner_q),
                     ha="center", va="bottom", fontsize=7,
                     color=model_colors[model_keys.index(row["winner"])])
 
@@ -246,20 +237,18 @@ for ax, regime in zip(axes, REGIME_ORDER):
 # shared legend at bottom
 patches = [mpatches.Patch(color=model_colors[i], label=model_names[i], alpha=0.8)
            for i in range(4)]
-patches.append(mpatches.Patch(color="none", label="★ = stock winner"))
+patches.append(mpatches.Patch(color="none", label="* = stock winner"))
 fig.legend(handles=patches, loc="lower center", ncol=5, fontsize=9,
            framealpha=0.9, bbox_to_anchor=(0.5, -0.01))
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, "fig2_per_stock_qlike.png"), dpi=150, bbox_inches="tight")
 plt.close()
-print("  ✓ fig2")
+print("  done fig2")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 3 — Box plots: QLIKE distribution per model × regime
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 3 — boxplots …")
+# Fig 3 - Box plots: QLIKE distribution per model x regime
+print("Building Fig 3 - boxplots ...")
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=False)
 fig.patch.set_facecolor(C["bg"])
@@ -301,18 +290,16 @@ for ax, regime in zip(axes, REGIME_ORDER):
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, "fig3_boxplots_by_regime.png"), dpi=160, bbox_inches="tight")
 plt.close()
-print("  ✓ fig3")
+print("  done fig3")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 4 — Routing outcomes: theory vs data-driven winner
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 4 — routing outcomes …")
+# Fig 4 - Routing outcomes: theory vs data-driven winner
+print("Building Fig 4 - routing outcomes ...")
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 fig.patch.set_facecolor(C["bg"])
 fig.suptitle(
-    "Dynamic Routing Outcomes — Which Model Actually Wins Per Stock?\n"
+    "Dynamic Routing Outcomes - Which Model Actually Wins Per Stock?\n"
     "(regime theory vs. data-driven recommendation)",
     fontsize=11, fontweight="600"
 )
@@ -324,9 +311,9 @@ for ax, regime in zip(axes, REGIME_ORDER):
     # show all 4 possible models even if 0
     bars_data = [(MODEL_LABELS[k], win_counts.get(k, 0), C[k]) for k in model_keys]
     bars_data = [(lbl, cnt, col) for lbl, cnt, col in bars_data if cnt > 0]
-    labels_b  = [b[0] for b in bars_data]
-    counts_b  = [b[1] for b in bars_data]
-    colors_b  = [b[2] for b in bars_data]
+    labels_b = [b[0] for b in bars_data]
+    counts_b = [b[1] for b in bars_data]
+    colors_b = [b[2] for b in bars_data]
 
     bars = ax.bar(labels_b, counts_b, color=colors_b, alpha=0.82, width=0.5)
     for bar, cnt in zip(bars, counts_b):
@@ -339,7 +326,7 @@ for ax, regime in zip(axes, REGIME_ORDER):
         idx = labels_b.index(rec_name)
         bars[idx].set_edgecolor("#222")
         bars[idx].set_linewidth(2.5)
-        ax.text(idx, counts_b[idx] + 0.6, "theory\nrec ↓", ha="center",
+        ax.text(idx, counts_b[idx] + 0.6, "theory\nrec v", ha="center",
                 fontsize=7, color="#222", fontstyle="italic")
 
     n_correct = sub["routing_correct"].sum()
@@ -352,15 +339,13 @@ for ax, regime in zip(axes, REGIME_ORDER):
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, "fig4_routing_outcomes.png"), dpi=160, bbox_inches="tight")
 plt.close()
-print("  ✓ fig4")
+print("  done fig4")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 5 — BAS vs LGBM gain over GARCH  (why liquidity regime matters)
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 5 — BAS vs LGBM improvement …")
+# Fig 5 - BAS vs LGBM gain over GARCH (why liquidity regime matters)
+print("Building Fig 5 - BAS vs LGBM improvement ...")
 
-df["lgbm_vs_garch"] = df["lgbm"] - df["garch"]   # negative = LGBM better
+df["lgbm_vs_garch"] = df["lgbm"] - df["garch"]  # negative = LGBM better
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 fig.patch.set_facecolor(C["bg"])
@@ -382,7 +367,7 @@ bp = ax.boxplot(bas_data, patch_artist=True,
                 flierprops=dict(marker="o", markersize=3, markerfacecolor=C["spine"], alpha=0.4))
 for patch, regime in zip(bp["boxes"], REGIME_ORDER):
     patch.set_facecolor(C[regime]); patch.set_alpha(0.75)
-style_ax(ax, title="Bid-Ask Spread by Regime", ylabel="Median BAS (×10⁻⁴)", legend=False)
+style_ax(ax, title="Bid-Ask Spread by Regime", ylabel="Median BAS (x10^-4)", legend=False)
 
 # right: scatter BAS vs LGBM improvement
 ax2 = axes[1]
@@ -400,36 +385,34 @@ ax2.plot(xfit, np.polyval(z, xfit), "--", color="#555", linewidth=1.2, alpha=0.7
          label="Trend")
 ax2.axhline(0, color=C["spine"], linewidth=0.8, linestyle=":")
 ax2.text(valid["median_bas"].max()*1e4*0.55, 0.02,
-         "← GARCH better above this line\nLGBM better below →",
+         "<- GARCH better above this line\nLGBM better below ->",
          fontsize=7.5, color="#555", va="bottom")
-style_ax(ax2, title="Higher BAS → Larger LGBM advantage",
-         xlabel="Median BAS (×10⁻⁴)", ylabel="LGBM QLIKE − GARCH QLIKE\n(negative = LGBM wins)")
+style_ax(ax2, title="Higher BAS -> Larger LGBM advantage",
+         xlabel="Median BAS (x10^-4)", ylabel="LGBM QLIKE - GARCH QLIKE\n(negative = LGBM wins)")
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, "fig5_bas_vs_improvement.png"), dpi=160, bbox_inches="tight")
 plt.close()
-print("  ✓ fig5")
+print("  done fig5")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  FIG 6 — Summary panel  (the "poster figure")
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 6 — summary panel …")
+# Fig 6 - Summary panel (the "poster figure")
+print("Building Fig 6 - summary panel ...")
 
 fig = plt.figure(figsize=(16, 10))
 fig.patch.set_facecolor(C["bg"])
 fig.suptitle(
-    "Regime-Based Volatility Forecasting — Group 8 Summary\n"
+    "Regime-Based Volatility Forecasting - Group 8 Summary\n"
     "\"Which model is appropriate under the current liquidity regime?\"",
     fontsize=13, fontweight="700", y=1.01
 )
 gs = gridspec.GridSpec(2, 6, figure=fig, hspace=0.48, wspace=0.35)
 
-# ── top-left: median QLIKE by regime (bar) ───────────────────────────────────
+# top-left: median QLIKE by regime (bar)
 ax1 = fig.add_subplot(gs[0, :4])
 med_re = df.groupby("regime")[["garch","egarchx","har","lgbm"]].median().reindex(REGIME_ORDER)
-x  = np.arange(len(REGIME_ORDER))
-w  = 0.19
+x = np.arange(len(REGIME_ORDER))
+w = 0.19
 for i, (key, col) in enumerate(zip(model_keys, model_colors)):
     vals = med_re[key].values
     bars = ax1.bar(x + (i-1.5)*w, vals, width=w, color=col, alpha=0.82,
@@ -445,9 +428,9 @@ ax1.set_xticklabels([r.capitalize() for r in REGIME_ORDER], fontsize=10)
 style_ax(ax1, title="Median QLIKE by Regime and Model  (lower = better)",
          ylabel="Median QLIKE")
 
-# ── top-right: pie — how often does regime routing agree with data? ───────────
+# top-right: pie - how often does regime routing agree with data?
 ax2 = fig.add_subplot(gs[0, 4:])
-correct   = df["routing_correct"].sum()
+correct = df["routing_correct"].sum()
 incorrect = len(df) - correct
 ax2.pie([correct, incorrect],
         labels=[f"Theory-rec wins\n({correct} stocks)",
@@ -459,7 +442,7 @@ ax2.pie([correct, incorrect],
 ax2.set_title("Regime routing: theory vs. data\n(across all 60 stocks)",
               fontsize=9, fontweight="600")
 
-# ── bottom-left: winner counts per regime (stacked) ──────────────────────────
+# bottom-left: winner counts per regime (stacked)
 ax3 = fig.add_subplot(gs[1, :3])
 winner_mat = pd.crosstab(df["regime"], df["winner"]).reindex(REGIME_ORDER)
 winner_mat = winner_mat.reindex(columns=model_keys, fill_value=0)
@@ -479,7 +462,7 @@ style_ax(ax3, title="Which model wins per stock?",
          ylabel="# stocks", legend=False)
 ax3.legend(fontsize=7.5, loc="upper right", framealpha=0.9)
 
-# ── bottom-mid: LGBM vs GARCH improvement by regime ─────────────────────────
+# bottom-mid: LGBM vs GARCH improvement by regime
 ax4 = fig.add_subplot(gs[1, 3:])
 for regime in REGIME_ORDER:
     sub = df[df["regime"] == regime]["lgbm_vs_garch"].dropna()
@@ -496,16 +479,15 @@ for regime in REGIME_ORDER:
 ax4.axhline(0, color="#888", linewidth=0.8, linestyle="--")
 ax4.set_xticks(range(3))
 ax4.set_xticklabels([r.capitalize() for r in REGIME_ORDER], fontsize=9)
-ax4.text(0.5, 0.04, "↑ GARCH wins", transform=ax4.transAxes,
+ax4.text(0.5, 0.04, "^ GARCH wins", transform=ax4.transAxes,
          ha="center", fontsize=7.5, color="#555", fontstyle="italic")
-ax4.text(0.5, 0.88, "↓ LGBM wins", transform=ax4.transAxes,
+ax4.text(0.5, 0.88, "v LGBM wins", transform=ax4.transAxes,
          ha="center", fontsize=7.5, color=C["lgbm"], fontstyle="italic")
 style_ax(ax4, title="LightGBM advantage over GARCH",
-         ylabel="LGBM QLIKE − GARCH QLIKE", legend=False)
+         ylabel="LGBM QLIKE - GARCH QLIKE", legend=False)
 
 
 plt.savefig(os.path.join(OUT, "fig6_regime_summary_panel.png"),
             dpi=160, bbox_inches="tight")
 plt.close()
-print("  ✓ fig6")
-
+print("  done fig6")

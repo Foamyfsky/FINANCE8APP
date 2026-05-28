@@ -7,12 +7,12 @@ Run from the FINANCE8APP directory:
 """
 import json, csv, os, collections
 
-BASE      = os.path.dirname(os.path.abspath(__file__))
-JSON_DIR  = os.path.join(BASE, "m4_outputs", "stock_data_json")
-M4_DIR    = os.path.join(BASE, "m4_outputs")
-LGBM_CSV  = os.path.join(M4_DIR, "lgbm_outputs", "lgbm_eval_results.csv")
+BASE = os.path.dirname(os.path.abspath(__file__))
+JSON_DIR = os.path.join(BASE, "m4_outputs", "stock_data_json")
+M4_DIR = os.path.join(BASE, "m4_outputs")
+LGBM_CSV = os.path.join(M4_DIR, "lgbm_outputs", "lgbm_eval_results.csv")
 
-# ── 1. Load LGBM results (all stocks in one file) ──────────────────────────
+# Load LGBM results (all stocks in one file)
 lgbm_by_stock = collections.defaultdict(list)
 with open(LGBM_CSV, newline="") as f:
     for row in csv.DictReader(f):
@@ -26,13 +26,12 @@ with open(LGBM_CSV, newline="") as f:
 for sid in lgbm_by_stock:
     lgbm_by_stock[sid].sort(key=lambda x: x["t"])
 
-# ── 2. Process each JSON file ──────────────────────────────────────────────
 json_files = [f for f in os.listdir(JSON_DIR) if f.endswith(".json")]
 print(f"Found {len(json_files)} stock JSON files to enrich.")
 
 for fname in sorted(json_files):
     json_path = os.path.join(JSON_DIR, fname)
-    stock_id  = int(fname.replace("stock_", "").replace(".json", ""))
+    stock_id = int(fname.replace("stock_", "").replace(".json", ""))
     stock_dir = os.path.join(M4_DIR, f"stock_{stock_id}")
 
     with open(json_path) as f:
@@ -40,7 +39,7 @@ for fname in sorted(json_files):
 
     forecasts = {}
 
-    # ── GARCH (4 buckets per time_id; pred_RV identical across buckets) ───
+    # GARCH (4 buckets per time_id; average actual_RV across buckets, pred_RV is constant)
     garch_csv = os.path.join(stock_dir, "garch_eval_results.csv")
     if os.path.exists(garch_csv):
         buckets = collections.defaultdict(list)
@@ -57,7 +56,7 @@ for fname in sorted(json_files):
         ], key=lambda x: x["t"])
         forecasts["garch"] = garch_rows
 
-    # ── HAR-RV ────────────────────────────────────────────────────────────
+    # HAR-RV
     har_csv = os.path.join(stock_dir, "rosa_har_rv_forecasts.csv")
     if os.path.exists(har_csv):
         har_rows = []
@@ -71,7 +70,7 @@ for fname in sorted(json_files):
         har_rows.sort(key=lambda x: x["t"])
         forecasts["har"] = har_rows
 
-    # ── LightGBM ─────────────────────────────────────────────────────────
+    # LightGBM
     if stock_id in lgbm_by_stock:
         forecasts["lgbm"] = lgbm_by_stock[stock_id]
 

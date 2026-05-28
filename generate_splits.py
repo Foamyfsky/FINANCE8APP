@@ -1,12 +1,12 @@
 """
 generate_splits.py
-==================
+
 Generates the shared train/test dataset for the fair model comparison.
 
 Outputs -> DATA3888G08/splits/
-  train.csv        — buckets 1-16,  60 stocks, 300 time_ids
-  test.csv         — buckets 17-20, 60 stocks, 300 time_ids
-  stock_meta.csv   — stock_id, regime, median_bas, median_rv
+  train.csv        - buckets 1-16,  60 stocks, 300 time_ids
+  test.csv         - buckets 17-20, 60 stocks, 300 time_ids
+  stock_meta.csv   - stock_id, regime, median_bas, median_rv
 
 Columns: stock_id, time_id, time_bucket, wap, bas, rv, regime
 """
@@ -19,10 +19,10 @@ import pandas as pd
 sys.stdout.reconfigure(encoding="utf-8")
 
 INPUT_CSV = r"D:\USYD\DATA3888\group_asm\optiver_aggregated.csv"
-OUT_DIR   = os.path.join(os.path.dirname(__file__), "splits")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "splits")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# ── Exact stock lists and time_ids from Jamie's shared config ─────────────────
+# Exact stock lists and time_ids from Jamie's shared config
 LIQUID_STOCKS = [
     10, 13, 20, 28, 39, 46, 47, 50, 51, 52,
     64, 68, 69, 77, 85, 86, 95, 99, 120, 124,
@@ -78,9 +78,8 @@ SAMPLED_TIME_IDS = [
 ]
 
 TRAIN_BUCKETS = list(range(1, 17))   # 1-16
-TEST_BUCKETS  = list(range(17, 21))  # 17-20
+TEST_BUCKETS = list(range(17, 21))   # 17-20
 
-# ── Load and filter ───────────────────────────────────────────────────────────
 print("Loading data ...")
 df = (pd.read_csv(INPUT_CSV)
         .rename(columns={"WAP_mean":          "wap",
@@ -95,7 +94,7 @@ df = (pd.read_csv(INPUT_CSV)
 df["regime"] = df["stock_id"].map(REGIME_MAP)
 
 # Keep only sessions with all 20 buckets present
-counts   = df.groupby(["stock_id", "time_id"])["time_bucket"].count()
+counts = df.groupby(["stock_id", "time_id"])["time_bucket"].count()
 complete = counts[counts == 20].index
 df = df.set_index(["stock_id", "time_id"]).loc[complete].reset_index()
 
@@ -105,16 +104,14 @@ print(f"  Regimes: liquid={df[df.regime=='liquid']['stock_id'].nunique()} stocks
       f"mixed={df[df.regime=='mixed']['stock_id'].nunique()} stocks  "
       f"illiquid={df[df.regime=='illiquid']['stock_id'].nunique()} stocks")
 
-# ── Split ─────────────────────────────────────────────────────────────────────
 train = df[df["time_bucket"].isin(TRAIN_BUCKETS)].copy()
-test  = df[df["time_bucket"].isin(TEST_BUCKETS)].copy()
+test = df[df["time_bucket"].isin(TEST_BUCKETS)].copy()
 
 print(f"\nTrain: {len(train):,} rows  ({train['time_bucket'].nunique()} buckets: "
       f"{train['time_bucket'].min()}-{train['time_bucket'].max()})")
 print(f"Test : {len(test):,} rows  ({test['time_bucket'].nunique()} buckets: "
       f"{test['time_bucket'].min()}-{test['time_bucket'].max()})")
 
-# ── Stock metadata ────────────────────────────────────────────────────────────
 stock_meta = (train.groupby(["stock_id", "regime"])
               .agg(median_bas=("bas", "median"),
                    median_rv =("rv",  "median"),
@@ -122,13 +119,12 @@ stock_meta = (train.groupby(["stock_id", "regime"])
               .reset_index()
               .sort_values(["regime", "stock_id"]))
 
-# ── Save ──────────────────────────────────────────────────────────────────────
 train_path = os.path.join(OUT_DIR, "train.csv")
-test_path  = os.path.join(OUT_DIR, "test.csv")
-meta_path  = os.path.join(OUT_DIR, "stock_meta.csv")
+test_path = os.path.join(OUT_DIR, "test.csv")
+meta_path = os.path.join(OUT_DIR, "stock_meta.csv")
 
 train.to_csv(train_path, index=False)
-test.to_csv(test_path,  index=False)
+test.to_csv(test_path, index=False)
 stock_meta.to_csv(meta_path, index=False)
 
 print(f"\nSaved:")

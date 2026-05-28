@@ -1,5 +1,5 @@
 """
-LightGBM Volatility Forecasting — Regime-Based (20 liquid + 20 illiquid)
+LightGBM Volatility Forecasting - Regime-Based (20 liquid + 20 illiquid)
 DATA3888 Group 8
 
 Uses the same 40 stocks selected by config.py so results are directly
@@ -32,57 +32,54 @@ from matplotlib.patches import Patch
 from config import (get_selected_stocks, get_liquidity_map,
                     OUTPUT_DIR, JAMIE_LIQUIDITY_CSV)
 
-# ── Config ────────────────────────────────────────────────────────────────────
 INPUT_CSV = r"C:\Users\songj\OneDrive\UNI\Y3SEM1\DATA3888\Project Folder\DATA3888G08\optiver_aggregated.csv"
-LGBM_OUT  = os.path.join(OUTPUT_DIR, "lgbm_outputs")
+LGBM_OUT = os.path.join(OUTPUT_DIR, "lgbm_outputs")
 
-N_TRAIN      = 16
-N_VAL        = 4
-TRAIN_SPLIT  = 0.8   # first 80% of time_ids → train, last 20% → evaluate
+N_TRAIN = 16
+N_VAL = 4
+TRAIN_SPLIT = 0.8   # first 80% of time_ids -> train, last 20% -> evaluate
 RANDOM_STATE = 42
 
-C_LGBM  = "#8B5CF6"
+C_LGBM = "#8B5CF6"
 C_GARCH = "#378ADD"
-C_EX    = "#1D9E75"
-C_HAR   = "#D85A30"
-SPINE   = "#D3D1C7"
+C_EX = "#1D9E75"
+C_HAR = "#D85A30"
+SPINE = "#D3D1C7"
 
 os.makedirs(LGBM_OUT, exist_ok=True)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
 def qlike(pred, actual):
     """Variance-form QLIKE: log(pred) + actual/pred. Matches rosa.py and arma_jisu.py."""
-    pred   = np.maximum(pred,   1e-10)
+    pred = np.maximum(pred, 1e-10)
     actual = np.maximum(actual, 0.0)
     return np.log(pred) + actual / pred
 
 
 def engineer_features(grp):
-    vol    = grp["RV"].values
+    vol = grp["RV"].values
     spread = grp["BidAskSpread_mean"].values
-    wap    = grp["WAP_mean"].values if "WAP_mean" in grp.columns else np.zeros(len(grp))
+    wap = grp["WAP_mean"].values if "WAP_mean" in grp.columns else np.zeros(len(grp))
     return pd.Series({
-        "rv_mean":          vol.mean(),
-        "rv_std":           vol.std(),
-        "rv_first":         vol[0],
-        "rv_last":          vol[-1],
-        "rv_trend":         vol[-1] - vol[0],
-        "rv_max":           vol.max(),
-        "rv_min":           vol.min(),
-        "rv_first3_mean":   vol[:3].mean(),
-        "rv_last3_mean":    vol[-3:].mean(),
-        "rv_mid_mean":      vol[6:10].mean(),
-        "spread_mean":      spread.mean(),
-        "spread_std":       spread.std(),
-        "spread_last":      spread[-1],
-        "spread_max":       spread.max(),
-        "spread_trend":     spread[-1] - spread[0],
-        "wap_mean":         wap.mean(),
-        "wap_std":          wap.std(),
-        "wap_trend":        wap[-1] - wap[0],
-        "spread_rv_ratio":  spread.mean() / max(vol.mean(), 1e-10),
+        "rv_mean":         vol.mean(),
+        "rv_std":          vol.std(),
+        "rv_first":        vol[0],
+        "rv_last":         vol[-1],
+        "rv_trend":        vol[-1] - vol[0],
+        "rv_max":          vol.max(),
+        "rv_min":          vol.min(),
+        "rv_first3_mean":  vol[:3].mean(),
+        "rv_last3_mean":   vol[-3:].mean(),
+        "rv_mid_mean":     vol[6:10].mean(),
+        "spread_mean":     spread.mean(),
+        "spread_std":      spread.std(),
+        "spread_last":     spread[-1],
+        "spread_max":      spread.max(),
+        "spread_trend":    spread[-1] - spread[0],
+        "wap_mean":        wap.mean(),
+        "wap_std":         wap.std(),
+        "wap_trend":       wap[-1] - wap[0],
+        "spread_rv_ratio": spread.mean() / max(vol.mean(), 1e-10),
     })
 
 
@@ -102,35 +99,31 @@ def load_csv(filename):
     return pd.read_csv(path) if os.path.exists(path) else pd.DataFrame()
 
 
-# ── Load data ─────────────────────────────────────────────────────────────────
-
 print("Loading data ...")
 df = pd.read_csv(INPUT_CSV)
 df = df.sort_values(["stock_id","time_id","time_bucket"]).reset_index(drop=True)
 print(f"  {len(df):,} rows | {df['stock_id'].nunique()} stocks")
 
-counts   = df.groupby(["stock_id","time_id"])["time_bucket"].count()
+counts = df.groupby(["stock_id","time_id"])["time_bucket"].count()
 complete = counts[counts == N_TRAIN + N_VAL].index
 df = df.set_index(["stock_id","time_id"]).loc[complete].reset_index()
 
 liquidity_map = get_liquidity_map()
-# Do NOT pass df — selected_stocks.csv is the sole source of truth.
-selected      = get_selected_stocks()
-liquid_ids    = selected["liquid"]
-illiquid_ids  = selected["illiquid"]
-mixed_ids     = selected.get("mixed", [])
-all_ids       = selected["all"]
+# Do NOT pass df - selected_stocks.csv is the sole source of truth.
+selected = get_selected_stocks()
+liquid_ids = selected["liquid"]
+illiquid_ids = selected["illiquid"]
+mixed_ids = selected.get("mixed", [])
+all_ids = selected["all"]
 
 df = df[df["stock_id"].isin(all_ids)].copy()
 print(f"  Using {len(all_ids)} stocks: {len(liquid_ids)} liquid + "
       f"{len(illiquid_ids)} illiquid + {len(mixed_ids)} mixed")
 
 
-# ── Feature engineering ───────────────────────────────────────────────────────
-
 print("\nEngineering features ...")
 train_raw = df[df["time_bucket"] <= N_TRAIN]
-val_raw   = df[df["time_bucket"] >  N_TRAIN]
+val_raw = df[df["time_bucket"] > N_TRAIN]
 
 # Use WAP_mean if available, otherwise create a zero column as placeholder
 _feat_cols = ["RV", "BidAskSpread_mean"]
@@ -151,8 +144,8 @@ session_spread = (train_raw.groupby(["stock_id","time_id"])["BidAskSpread_mean"]
                   .mean().reset_index().rename(columns={"BidAskSpread_mean":"mean_spread"}))
 
 stock_global = (train_raw.groupby("stock_id")
-                .agg(stock_mean_rv    =("RV","mean"),
-                     stock_std_rv     =("RV","std"),
+                .agg(stock_mean_rv=("RV","mean"),
+                     stock_std_rv=("RV","std"),
                      stock_mean_spread=("BidAskSpread_mean","mean"))
                 .reset_index())
 
@@ -168,14 +161,12 @@ FEATURE_COLS = [c for c in data.columns
 print(f"  {data.shape[0]:,} sessions x {len(FEATURE_COLS)} features")
 
 
-# ── Train / evaluate per regime — temporal 80/20 split on time_ids ───────────
-#
-# Mirrors exactly what GARCH, EGARCH-X, and HAR-RV do:
-#   • Features come from each session's training window (buckets 1-16)
-#   • Target is the mean RV of that session's validation window (buckets 17-20)
-#   • time_ids are sorted chronologically; first 80% train the model,
-#     last 20% are the held-out evaluation set — one QLIKE per session.
-#
+# Train / evaluate per regime - temporal 80/20 split on time_ids.
+# Mirrors what GARCH, EGARCH-X, and HAR-RV do:
+#   - Features come from each session's training window (buckets 1-16)
+#   - Target is the mean RV of that session's validation window (buckets 17-20)
+#   - time_ids are sorted chronologically; first 80% train the model,
+#     last 20% are the held-out evaluation set - one QLIKE per session.
 # No cross-validation: a single model is trained per regime and evaluated
 # on the held-out sessions, giving a direct per-(stock_id, time_id) QLIKE
 # that is comparable to the other models' outputs.
@@ -189,24 +180,24 @@ if mixed_ids:
 
 for regime_label, regime_ids in regime_groups:
     rdata = data[data["stock_id"].isin(regime_ids)].copy()
-    tids  = np.array(sorted(rdata["time_id"].unique()))
+    tids = np.array(sorted(rdata["time_id"].unique()))
 
-    # Temporal split — same 80/20 ratio as the bucket-level split
-    n_train    = max(1, int(len(tids) * TRAIN_SPLIT))
+    # Temporal split - same 80/20 ratio as the bucket-level split
+    n_train = max(1, int(len(tids) * TRAIN_SPLIT))
     train_tids = tids[:n_train]
-    val_tids   = tids[n_train:]
+    val_tids = tids[n_train:]
 
     tr = rdata[rdata["time_id"].isin(train_tids)]
     vl = rdata[rdata["time_id"].isin(val_tids)]
 
-    print(f"\nLightGBM — {regime_label.upper()} "
+    print(f"\nLightGBM - {regime_label.upper()} "
           f"({len(regime_ids)} stocks, {len(rdata):,} sessions)")
-    print(f"  time_id range: {tids[0]} → {tids[-1]}")
+    print(f"  time_id range: {tids[0]} -> {tids[-1]}")
     print(f"  Train: {len(train_tids)} time_ids ({len(tr):,} sessions)  "
           f"| Eval: {len(val_tids)} time_ids ({len(vl):,} sessions)")
 
     if len(tr) == 0 or len(vl) == 0:
-        print("  Skipped — insufficient data for split.")
+        print("  Skipped - insufficient data for split.")
         continue
 
     model = lgb.LGBMRegressor(
@@ -224,19 +215,17 @@ for regime_label, regime_ids in regime_groups:
     print(f"  Done. Eval sessions: {len(vl):,}")
 
 
-# ── Evaluate and save ─────────────────────────────────────────────────────────
-
 results = pd.concat(all_preds, ignore_index=True)
 results["QLIKE"] = qlike(results["pred_vol"].values, results["target_rv"].values)
-results["MSE"]   = (results["pred_vol"] - results["target_rv"]) ** 2
+results["MSE"] = (results["pred_vol"] - results["target_rv"]) ** 2
 
 per_stock = (results
              .groupby(["stock_id","regime"])
              .agg(median_QLIKE=("QLIKE","median"),
-                  mean_QLIKE  =("QLIKE","mean"),
-                  median_MSE  =("MSE","median"),
-                  mean_spread =("mean_spread","mean"),
-                  n_sessions  =("time_id","count"))
+                  mean_QLIKE=("QLIKE","mean"),
+                  median_MSE=("MSE","median"),
+                  mean_spread=("mean_spread","mean"),
+                  n_sessions=("time_id","count"))
              .reset_index().sort_values("median_QLIKE"))
 
 feat_imp = (pd.DataFrame({"feature": FEATURE_COLS,
@@ -247,7 +236,7 @@ results[["stock_id","time_id","regime","mean_spread",
          "pred_vol","target_rv","QLIKE","MSE"]].to_csv(
     os.path.join(LGBM_OUT, "lgbm_eval_results.csv"), index=False)
 per_stock.to_csv(os.path.join(LGBM_OUT, "lgbm_per_stock.csv"), index=False)
-feat_imp.to_csv( os.path.join(LGBM_OUT, "lgbm_feature_importance.csv"), index=False)
+feat_imp.to_csv(os.path.join(LGBM_OUT, "lgbm_feature_importance.csv"), index=False)
 print("\nSaved CSVs.")
 
 print(f"\n{'='*55}")
@@ -258,11 +247,9 @@ for regime_label in ["liquid","illiquid"]:
 print(f"{'='*55}")
 
 
-# ── Load other model summaries ────────────────────────────────────────────────
-
-garch_sum   = load_csv("all_stocks_garch_summary.csv")
+garch_sum = load_csv("all_stocks_garch_summary.csv")
 egarchx_sum = load_csv("all_stocks_egarchx_summary.csv")
-har_sum     = load_csv("all_stocks_har_rv_summary.csv")
+har_sum = load_csv("all_stocks_har_rv_summary.csv")
 
 
 def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle):
@@ -270,7 +257,6 @@ def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle
     Generic grouped bar chart: LGBM vs 2 other models, QLIKE and MSE side by side.
     other_models: list of (label, color, summary_df)
     """
-    # Build merged table
     merged = lgbm_ps.copy()
     for label, col, sdf in other_models:
         if not sdf.empty and "stock_id" in sdf.columns and "median_QLIKE" in sdf.columns:
@@ -286,7 +272,7 @@ def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle
     w = 0.22
     xlabels = [f"Stk {int(s)}" for s in merged["stock_id"]]
     n_models = 1 + len(other_models)
-    offsets  = np.linspace(-(n_models-1)*w/2, (n_models-1)*w/2, n_models)
+    offsets = np.linspace(-(n_models-1)*w/2, (n_models-1)*w/2, n_models)
 
     fig, axes = plt.subplots(1, 2, figsize=(15, 5))
     fig.patch.set_facecolor("white")
@@ -296,7 +282,6 @@ def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle
                                (axes[1],"MSE",  "Median MSE   (lower = better)")]:
         ax.set_facecolor("white")
 
-        # LightGBM
         lgbm_col = "median_QLIKE" if metric == "QLIKE" else "median_MSE"
         ax.bar(x + offsets[0], merged[lgbm_col], width=w,
                label="LightGBM", color=C_LGBM, alpha=0.85)
@@ -322,46 +307,46 @@ def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle
     print(f"Saved: {filename}")
 
 
-# ── Plot 1: Liquid — LightGBM vs GARCH vs EGARCH-X ───────────────────────────
+# Plot 1: Liquid - LightGBM vs GARCH vs EGARCH-X
 liq_lgbm = per_stock[per_stock["regime"] == "liquid"].copy()
 
 if not liq_lgbm.empty:
-    liq_garch   = garch_sum[garch_sum["liquidity_regime"] == "liquid"]   if not garch_sum.empty   else pd.DataFrame()
-    liq_egarchx = egarchx_sum[egarchx_sum["egarchx_ran"] == True]        if not egarchx_sum.empty else pd.DataFrame()
+    liq_garch = garch_sum[garch_sum["liquidity_regime"] == "liquid"]   if not garch_sum.empty   else pd.DataFrame()
+    liq_egarchx = egarchx_sum[egarchx_sum["egarchx_ran"] == True]      if not egarchx_sum.empty else pd.DataFrame()
 
     make_comparison_plot(
-        lgbm_ps      = liq_lgbm,
-        other_models = [("GARCH(1,1)", C_GARCH, liq_garch),
-                        ("EGARCH-X",   C_EX,    liq_egarchx)],
-        regime_label = "liquid",
-        filename     = "lgbm_01_vs_garch_egarchx.png",
-        suptitle     = "LightGBM vs GARCH vs EGARCH-X — Liquid Stocks",
+        lgbm_ps=liq_lgbm,
+        other_models=[("GARCH(1,1)", C_GARCH, liq_garch),
+                      ("EGARCH-X",   C_EX,    liq_egarchx)],
+        regime_label="liquid",
+        filename="lgbm_01_vs_garch_egarchx.png",
+        suptitle="LightGBM vs GARCH vs EGARCH-X - Liquid Stocks",
     )
 
 
-# ── Plot 2: Illiquid — LightGBM vs GARCH vs HAR-RV ───────────────────────────
+# Plot 2: Illiquid - LightGBM vs GARCH vs HAR-RV
 illiq_lgbm = per_stock[per_stock["regime"] == "illiquid"].copy()
 
 if not illiq_lgbm.empty:
     illiq_garch = garch_sum[garch_sum["liquidity_regime"] == "illiquid"] if not garch_sum.empty else pd.DataFrame()
 
     make_comparison_plot(
-        lgbm_ps      = illiq_lgbm,
-        other_models = [("GARCH(1,1)", C_GARCH, illiq_garch),
-                        ("HAR-RV",     C_HAR,   har_sum)],
-        regime_label = "illiquid",
-        filename     = "lgbm_02_vs_garch_har.png",
-        suptitle     = "LightGBM vs GARCH vs HAR-RV — Illiquid Stocks",
+        lgbm_ps=illiq_lgbm,
+        other_models=[("GARCH(1,1)", C_GARCH, illiq_garch),
+                      ("HAR-RV",     C_HAR,   har_sum)],
+        regime_label="illiquid",
+        filename="lgbm_02_vs_garch_har.png",
+        suptitle="LightGBM vs GARCH vs HAR-RV - Illiquid Stocks",
     )
 
 
-# ── Plot 3: Feature importance ────────────────────────────────────────────────
+# Plot 3: Feature importance
 fig, ax = plt.subplots(figsize=(9, 5))
 fig.patch.set_facecolor("white")
 top12 = feat_imp.head(12)
 ax.barh(top12["feature"][::-1], top12["importance"][::-1],
         color=C_LGBM, alpha=0.8, edgecolor="white")
-style_ax(ax, title="LightGBM Feature Importance — Top 12  (averaged across regimes)",
+style_ax(ax, title="LightGBM Feature Importance - Top 12  (averaged across regimes)",
          xlabel="Importance (split count)")
 ax.grid(axis="x", color=SPINE, linewidth=0.4, linestyle="--")
 ax.grid(axis="y", linestyle="none")
@@ -372,10 +357,10 @@ plt.close()
 print("Saved: lgbm_03_feature_importance.png")
 
 
-# ── Plot 4: Predicted vs Actual — liquid and illiquid side by side ────────────
+# Plot 4: Predicted vs Actual - liquid and illiquid side by side
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 fig.patch.set_facecolor("white")
-fig.suptitle("LightGBM — Predicted vs Actual Volatility", fontsize=12, fontweight="500")
+fig.suptitle("LightGBM - Predicted vs Actual Volatility", fontsize=12, fontweight="500")
 
 for ax, regime_label, col in [(axes[0],"liquid",C_EX), (axes[1],"illiquid",C_HAR)]:
     rdf = results[results["regime"] == regime_label].copy()

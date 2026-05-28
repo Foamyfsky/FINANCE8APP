@@ -1,6 +1,6 @@
 """
-select_stocks.py  —  DATA3888 Group 8
-======================================
+select_stocks.py - DATA3888 Group 8
+
 Quickly generates the 60-stock selection (20 liquid + 20 illiquid + 20 mixed)
 WITHOUT running any models.
 
@@ -15,19 +15,14 @@ import sys
 import numpy as np
 import pandas as pd
 
-# ── Data path (same as rosa.py) ───────────────────────────────────────────────
 INPUT_CSV = r"C:\Users\songj\OneDrive\UNI\Y3SEM1\DATA3888\Project Folder\DATA3888G08\optiver_aggregated.csv"
 
-# ── Add project dir to path so config imports work ────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import OUTPUT_DIR, ROSA_LIQUIDITY_CSV, RANDOM_SEED, N_STOCKS_PER_REGIME
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 LIQUIDITY_PROFILE_PATH = os.path.join(OUTPUT_DIR, "har_rv_stock_liquidity_profile.csv")
 
-# =============================================================================
-#  Step 1 — Build (or load) the liquidity profile
-# =============================================================================
 
 def build_liquidity_profile(df):
     liq = df[["stock_id", "time_id", "time_bucket", "BidAskSpread_mean", "RV"]].copy()
@@ -35,8 +30,8 @@ def build_liquidity_profile(df):
     liq["time_bucket"] = liq["time_bucket"].astype(int)
     liq = liq[liq["time_bucket"].between(1, 16)].copy()
 
-    liq["inv_spread"]    = 1.0 / (liq["bas"] + 1e-6)
-    liq["log_activity"]  = np.log1p(liq["inv_spread"])
+    liq["inv_spread"] = 1.0 / (liq["bas"] + 1e-6)
+    liq["log_activity"] = np.log1p(liq["inv_spread"])
 
     bas_q33 = liq["bas"].quantile(0.33)
     bas_q66 = liq["bas"].quantile(0.66)
@@ -62,7 +57,7 @@ def build_liquidity_profile(df):
     )
 
     def _regime(row):
-        if row["liquid_pct"]   >= 0.40: return "liquid"
+        if row["liquid_pct"] >= 0.40: return "liquid"
         if row["illiquid_pct"] >= 0.40: return "illiquid"
         return "mixed"
 
@@ -73,44 +68,35 @@ def build_liquidity_profile(df):
     return profile
 
 
-# =============================================================================
-#  Step 2 — Select 20 liquid + 20 illiquid + 20 mixed
-# =============================================================================
-
 def select_stocks(df, profile):
     stock_bas = df.groupby("stock_id")["BidAskSpread_mean"].median()
 
-    liquid_pool   = profile[profile["stock_regime"] == "liquid"]["stock_id"].tolist()
+    liquid_pool = profile[profile["stock_regime"] == "liquid"]["stock_id"].tolist()
     illiquid_pool = profile[profile["stock_regime"] == "illiquid"]["stock_id"].tolist()
-    mixed_pool    = profile[profile["stock_regime"] == "mixed"]["stock_id"].tolist()
+    mixed_pool = profile[profile["stock_regime"] == "mixed"]["stock_id"].tolist()
 
     # Liquid: tightest BAS (most liquid)
-    liq_bas      = stock_bas[stock_bas.index.isin(liquid_pool)].sort_values(ascending=True)
-    liquid_sel   = liq_bas.head(N_STOCKS_PER_REGIME).index.tolist()
+    liq_bas = stock_bas[stock_bas.index.isin(liquid_pool)].sort_values(ascending=True)
+    liquid_sel = liq_bas.head(N_STOCKS_PER_REGIME).index.tolist()
 
     # Illiquid: widest BAS (most illiquid)
-    ilq_bas      = stock_bas[stock_bas.index.isin(illiquid_pool)].sort_values(ascending=False)
+    ilq_bas = stock_bas[stock_bas.index.isin(illiquid_pool)].sort_values(ascending=False)
     illiquid_sel = ilq_bas.head(N_STOCKS_PER_REGIME).index.tolist()
 
     # Mixed: random sample from remaining pool
-    already      = set(liquid_sel + illiquid_sel)
-    mix_cands    = [s for s in mixed_pool if s not in already]
-    rng          = np.random.default_rng(RANDOM_SEED)
-    n_mix        = min(N_STOCKS_PER_REGIME, len(mix_cands))
-    mixed_sel    = sorted(rng.choice(mix_cands, size=n_mix, replace=False).tolist())
+    already = set(liquid_sel + illiquid_sel)
+    mix_cands = [s for s in mixed_pool if s not in already]
+    rng = np.random.default_rng(RANDOM_SEED)
+    n_mix = min(N_STOCKS_PER_REGIME, len(mix_cands))
+    mixed_sel = sorted(rng.choice(mix_cands, size=n_mix, replace=False).tolist())
 
     return liquid_sel, illiquid_sel, mixed_sel
 
-
-# =============================================================================
-#  Main
-# =============================================================================
 
 print("Loading data ...")
 df = pd.read_csv(INPUT_CSV)
 print(f"  {df['stock_id'].nunique()} stocks, {df['time_id'].nunique()} time_ids\n")
 
-# Build or reuse profile
 if os.path.exists(LIQUIDITY_PROFILE_PATH):
     print(f"Reusing existing profile: {LIQUIDITY_PROFILE_PATH}")
     profile = pd.read_csv(LIQUIDITY_PROFILE_PATH)
@@ -131,7 +117,6 @@ print(f"    {sorted(mixed_sel)}")
 print(f"\n  ALL 60:  {sorted(liquid_sel + illiquid_sel + mixed_sel)}")
 print("="*60)
 
-# Save to selected_stocks.csv
 stock_bas = df.groupby("stock_id")["BidAskSpread_mean"].median()
 rows = (
     [{"stock_id": s, "regime": "liquid",   "median_BAS": stock_bas.get(s)} for s in liquid_sel] +

@@ -16,10 +16,10 @@ SELECTED_STOCKS = [
     112, 113, 116, 119, 120, 122, 123, 124, 125, 126
 ]
 
-HERE      = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR   = os.path.join(HERE, "m4_outputs", "stock_data_json")
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR = os.path.join(HERE, "m4_outputs", "stock_data_json")
 STOCK_DIR = os.path.join(HERE, "m4_outputs")
-LGBM_CSV  = os.path.join(HERE, "m4_outputs", "lgbm_outputs", "lgbm_eval_results.csv")
+LGBM_CSV = os.path.join(HERE, "m4_outputs", "lgbm_outputs", "lgbm_eval_results.csv")
 
 
 def load_bucketed(csv_path):
@@ -61,9 +61,9 @@ for sid in SELECTED_STOCKS:
 
     folder = os.path.join(STOCK_DIR, f"stock_{sid}")
 
-    gjr  = load_bucketed(os.path.join(folder, "garch_eval_results.csv"))
-    egx  = load_bucketed(os.path.join(folder, "egarchx_eval_results.csv"))
-    har  = load_simple(os.path.join(folder, "rosa_har_rv_eval_results.csv"))
+    gjr = load_bucketed(os.path.join(folder, "garch_eval_results.csv"))
+    egx = load_bucketed(os.path.join(folder, "egarchx_eval_results.csv"))
+    har = load_simple(os.path.join(folder, "rosa_har_rv_eval_results.csv"))
 
     lgbm = None
     if lgbm_all is not None:

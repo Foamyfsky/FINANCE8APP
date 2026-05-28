@@ -1,14 +1,14 @@
 """
-M4 — Shared Configuration
+M4 - Shared Configuration
 DATA3888 Group 8
 
 Single source of truth for paths, model parameters, and stock selection.
 Import this in arma_jisu.py, rosa.py, and any other script.
 
 Liquidity source priority:
-  1. Rosa's har_rv_stock_liquidity_profile.csv  <- richer, 3-way regime
+  1. Rosa's har_rv_stock_liquidity_profile.csv  - richer, 3-way regime
      (bucket-level BAS + inverse-spread activity, 40% threshold)
-  2. Jamie's jamie_liquidity.csv                <- fallback binary classification
+  2. Jamie's jamie_liquidity.csv                - fallback binary classification
 
 Usage:
     from config import get_selected_stocks, get_liquidity_map, filter_time_ids,
@@ -19,8 +19,7 @@ import os
 import numpy as np
 import pandas as pd
 
-# -- Paths --------------------------------------------------------------------
-_HERE      = os.path.dirname(os.path.abspath(__file__))
+_HERE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(_HERE, "m4_outputs")
 
 JAMIE_LIQUIDITY_CSV = os.path.join(OUTPUT_DIR, "jamie_liquidity.csv")
@@ -34,41 +33,31 @@ _ROSA_SEARCH_PATHS = [
 ]
 ROSA_LIQUIDITY_CSV = next((p for p in _ROSA_SEARCH_PATHS if os.path.exists(p)), None)
 
-# -- Model parameters ---------------------------------------------------------
-N_TRAIN             = 16     # training buckets per time_id
-N_VAL               = 4      # validation buckets per time_id
+N_TRAIN = 16     # training buckets per time_id
+N_VAL = 4        # validation buckets per time_id
 N_STOCKS_PER_REGIME = 20     # 20 liquid + 20 illiquid + 20 mixed = 60 total
-TIME_ID_KEEP_PCT    = 0.5    # keep the most regime-extreme 50% of time_ids
+TIME_ID_KEEP_PCT = 0.5       # keep the most regime-extreme 50% of time_ids
 
 # Mixed regime: Jamie liquidity scores between these bounds -> mixed candidate
 MIXED_SCORE_LO = 0.3
 MIXED_SCORE_HI = 0.7
-RANDOM_SEED    = 42   # reproducible mixed-stock selection
+RANDOM_SEED = 42   # reproducible mixed-stock selection
 
-# -- Manual stock overrides ---------------------------------------------------
-# Fill these lists to pin exactly which stocks each model runs on.
-# Leave all three empty ([]) to use automatic selection from the liquidity profile.
+# Manual stock overrides.
+# If any list is non-empty, all three are used as-is and auto-selection is skipped.
+# To use auto-selection, leave all three as empty lists ([]).
 #
 # How to use:
-#   1. Run rosa.py once  ->  prints "Stock selection from Rosa's profile"
-#                            with the exact stock_ids chosen.
+#   1. Run rosa.py once -> prints "Stock selection from Rosa's profile"
+#                          with the exact stock_ids chosen.
 #   2. Copy those ids into the lists below and share config.py with groupmates.
 #
-# Example (replace with your actual ids after first run):
-#   LIQUID_STOCKS   = [43, 29, 69, 111, 41, 124, 46, 47, 125, 14, ...]
-#   ILLIQUID_STOCKS = [31, 18, 37, 75, 27, 33, 97, 112, 40, 9, ...]
-#   MIXED_STOCKS    = [5, 12, 23, ...]
-#
-LIQUID_STOCKS   = [2, 14, 29, 39, 41, 43, 44, 46, 47, 50, 64, 69, 93, 99, 111, 119, 120, 123, 124, 125]   # <- fill in to override auto-selection
-ILLIQUID_STOCKS = [3, 5, 6, 9, 18, 27, 31, 33, 37, 40, 62, 75, 88, 90, 97, 98, 103, 112, 116, 126]   # <- fill in to override auto-selection
-MIXED_STOCKS    = [7, 15, 17, 19, 26, 32, 48, 56, 59, 70, 72, 76, 82, 89, 96, 101, 108, 109, 113, 122]   # <- fill in to override auto-selection
+LIQUID_STOCKS   = [2, 14, 29, 39, 41, 43, 44, 46, 47, 50, 64, 69, 93, 99, 111, 119, 120, 123, 124, 125]
+ILLIQUID_STOCKS = [3, 5, 6, 9, 18, 27, 31, 33, 37, 40, 62, 75, 88, 90, 97, 98, 103, 112, 116, 126]
+MIXED_STOCKS    = [7, 15, 17, 19, 26, 32, 48, 56, 59, 70, 72, 76, 82, 89, 96, 101, 108, 109, 113, 122]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-
-# =============================================================================
-#  Internal helpers
-# =============================================================================
 
 def _load_rosa_profile():
     """Load Rosa's liquidity profile CSV. Returns DataFrame or None."""
@@ -87,10 +76,6 @@ def _load_jamie_profile():
         )
     return pd.read_csv(JAMIE_LIQUIDITY_CSV)
 
-
-# =============================================================================
-#  get_liquidity_map  ->  {stock_id: 'liquid' | 'illiquid' | 'mixed'}
-# =============================================================================
 
 def get_liquidity_map():
     """
@@ -117,10 +102,6 @@ def get_liquidity_map():
     return regime_map
 
 
-# =============================================================================
-#  get_selected_stocks  ->  {liquid: [...], illiquid: [...], mixed: [...], all: [...]}
-# =============================================================================
-
 def get_selected_stocks(df=None):
     """
     Returns a dict with keys: 'liquid', 'illiquid', 'mixed', 'all'.
@@ -131,11 +112,11 @@ def get_selected_stocks(df=None):
       2. selected_stocks.csv cache -- loaded if it exists and is non-empty.
       3. Auto-selection from Rosa's or Jamie's liquidity profile + raw data.
     """
-    # 1. Manual overrides take top priority
+    # Manual overrides take top priority
     if LIQUID_STOCKS or ILLIQUID_STOCKS or MIXED_STOCKS:
-        liquid   = [int(s) for s in LIQUID_STOCKS]
+        liquid = [int(s) for s in LIQUID_STOCKS]
         illiquid = [int(s) for s in ILLIQUID_STOCKS]
-        mixed    = [int(s) for s in MIXED_STOCKS]
+        mixed = [int(s) for s in MIXED_STOCKS]
         print(f"  [config] Using manual stock overrides:")
         print(f"    Liquid   ({len(liquid)}):   {liquid}")
         print(f"    Illiquid ({len(illiquid)}): {illiquid}")
@@ -147,13 +128,13 @@ def get_selected_stocks(df=None):
             "all":      sorted(liquid + illiquid + mixed),
         }
 
-    # 2. CSV cache
+    # CSV cache
     if os.path.exists(SELECTED_STOCKS_CSV):
         sel = pd.read_csv(SELECTED_STOCKS_CSV)
         if not sel.empty:
-            liquid   = sel[sel["regime"] == "liquid"]["stock_id"].tolist()
+            liquid = sel[sel["regime"] == "liquid"]["stock_id"].tolist()
             illiquid = sel[sel["regime"] == "illiquid"]["stock_id"].tolist()
-            mixed    = sel[sel["regime"] == "mixed"]["stock_id"].tolist()
+            mixed = sel[sel["regime"] == "mixed"]["stock_id"].tolist()
             if liquid or illiquid:
                 return {
                     "liquid":   liquid,
@@ -162,7 +143,7 @@ def get_selected_stocks(df=None):
                     "all":      sorted(liquid + illiquid + mixed),
                 }
 
-    # 3. Auto-select
+    # Auto-select
     if df is None:
         raise ValueError(
             "selected_stocks.csv not found/empty and no DataFrame provided.\n"
@@ -177,47 +158,47 @@ def _compute_and_save(df):
 
     rosa = _load_rosa_profile()
     if rosa is not None and "stock_regime" in rosa.columns:
-        liquid_pool   = rosa[rosa["stock_regime"] == "liquid"]["stock_id"].tolist()
+        liquid_pool = rosa[rosa["stock_regime"] == "liquid"]["stock_id"].tolist()
         illiquid_pool = rosa[rosa["stock_regime"] == "illiquid"]["stock_id"].tolist()
-        mixed_pool    = rosa[rosa["stock_regime"] == "mixed"]["stock_id"].tolist()
+        mixed_pool = rosa[rosa["stock_regime"] == "mixed"]["stock_id"].tolist()
 
         liq_bas = stock_bas[stock_bas.index.isin(liquid_pool)]
         ilq_bas = stock_bas[stock_bas.index.isin(illiquid_pool)]
         mix_bas = stock_bas[stock_bas.index.isin(mixed_pool)]
 
-        liquid_sel   = liq_bas.sort_values(ascending=True).head(N_STOCKS_PER_REGIME).index.tolist()
+        liquid_sel = liq_bas.sort_values(ascending=True).head(N_STOCKS_PER_REGIME).index.tolist()
         illiquid_sel = ilq_bas.sort_values(ascending=False).head(N_STOCKS_PER_REGIME).index.tolist()
 
-        already   = set(liquid_sel + illiquid_sel)
+        already = set(liquid_sel + illiquid_sel)
         mix_cands = [s for s in mix_bas.index if s not in already]
-        rng       = np.random.default_rng(RANDOM_SEED)
-        n_mix     = min(N_STOCKS_PER_REGIME, len(mix_cands))
+        rng = np.random.default_rng(RANDOM_SEED)
+        n_mix = min(N_STOCKS_PER_REGIME, len(mix_cands))
         mixed_sel = sorted(rng.choice(mix_cands, size=n_mix, replace=False).tolist())
 
         source = "Rosa's profile"
 
     else:
-        jamie         = _load_jamie_profile()
-        liq_df        = jamie.copy()
+        jamie = _load_jamie_profile()
+        liq_df = jamie.copy()
         liquidity_map = dict(zip(liq_df["stock_id"], liq_df["liquidity_regime"]))
-        score_map     = dict(zip(liq_df["stock_id"],
-                                 liq_df["liquidity_score"] if "liquidity_score" in liq_df.columns
-                                 else pd.Series(dtype=float)))
+        score_map = dict(zip(liq_df["stock_id"],
+                             liq_df["liquidity_score"] if "liquidity_score" in liq_df.columns
+                             else pd.Series(dtype=float)))
 
-        liquid_pool   = [s for s, r in liquidity_map.items() if r == "liquid"]
+        liquid_pool = [s for s, r in liquidity_map.items() if r == "liquid"]
         illiquid_pool = [s for s, r in liquidity_map.items() if r == "illiquid"]
 
-        liquid_sel   = (stock_bas[stock_bas.index.isin(liquid_pool)]
-                        .sort_values(ascending=True).head(N_STOCKS_PER_REGIME).index.tolist())
+        liquid_sel = (stock_bas[stock_bas.index.isin(liquid_pool)]
+                      .sort_values(ascending=True).head(N_STOCKS_PER_REGIME).index.tolist())
         illiquid_sel = (stock_bas[stock_bas.index.isin(illiquid_pool)]
                         .sort_values(ascending=False).head(N_STOCKS_PER_REGIME).index.tolist())
 
-        already   = set(liquid_sel + illiquid_sel)
+        already = set(liquid_sel + illiquid_sel)
         mix_cands = [s for s in liq_df["stock_id"]
                      if MIXED_SCORE_LO <= score_map.get(s, 0) <= MIXED_SCORE_HI
                      and s not in already]
-        rng       = np.random.default_rng(RANDOM_SEED)
-        n_mix     = min(N_STOCKS_PER_REGIME, len(mix_cands))
+        rng = np.random.default_rng(RANDOM_SEED)
+        n_mix = min(N_STOCKS_PER_REGIME, len(mix_cands))
         mixed_sel = sorted(rng.choice(mix_cands, size=n_mix, replace=False).tolist()
                            if mix_cands else [])
         source = "Jamie's CSV (fallback)"
@@ -245,10 +226,6 @@ def _compute_and_save(df):
     }
 
 
-# =============================================================================
-#  filter_time_ids
-# =============================================================================
-
 def filter_time_ids(vol_train, time_ids, regime):
     """
     Return the subset of time_ids most representative of the given regime:
@@ -260,6 +237,6 @@ def filter_time_ids(vol_train, time_ids, regime):
         return time_ids
 
     tid_bas = {tid: vol_train[tid]["BidAskSpread_mean"].median() for tid in time_ids}
-    tid_s   = pd.Series(tid_bas).sort_values(ascending=(regime == "liquid"))
-    n_keep  = max(1, int(len(tid_s) * TIME_ID_KEEP_PCT))
+    tid_s = pd.Series(tid_bas).sort_values(ascending=(regime == "liquid"))
+    n_keep = max(1, int(len(tid_s) * TIME_ID_KEEP_PCT))
     return tid_s.head(n_keep).index.tolist()

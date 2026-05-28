@@ -1,53 +1,53 @@
 """
-M4 — Phase 3: HAR-RV + WLS Volatility Models (Rosa)
+M4 - Phase 3: HAR-RV + WLS Volatility Models (Rosa)
 DATA3888 Group 8
 
 Models:
   HAR-RV (Heterogeneous Autoregressive Realised Volatility)
-    RV(t+1) = c + β_d·RV_d(t) + β_w·RV_w(t) + β_m·RV_m(t) + ε(t)
+    RV(t+1) = c + beta_d*RV_d(t) + beta_w*RV_w(t) + beta_m*RV_m(t) + eps(t)
     Fit via OLS per time_id. Numerically stable for any liquidity regime.
 
   WLS-HAR-RV (Weighted Least Squares)
     Same equation, but recent buckets receive higher weight (exponential decay).
-    Better than OLS when volatility is heteroskedastic — more weight on recent info.
+    Better than OLS when volatility is heteroskedastic - more weight on recent info.
 
 Why HAR-RV / WLS for illiquid and mixed stocks:
-  EGARCH-X can diverge when the order book is thin (wide BAS → large spread term).
-  HAR-RV and WLS have no spread term — they are purely autoregressive and
+  EGARCH-X can diverge when the order book is thin (wide BAS -> large spread term).
+  HAR-RV and WLS have no spread term - they are purely autoregressive and
   numerically stable regardless of liquidity conditions.
 
 Liquidity profiling:
   Rosa's bucket-level approach labels each (stock_id, time_id, bucket) as
   liquid/illiquid/mixed using:
-    liquid   = BAS ≤ q33 AND log_activity ≥ q66
-    illiquid = BAS ≥ q66 AND log_activity ≤ q33
+    liquid   = BAS <= q33 AND log_activity >= q66
+    illiquid = BAS >= q66 AND log_activity <= q33
     mixed    = everything else
-  A stock is liquid if ≥40% of its buckets are liquid, illiquid if ≥40%
+  A stock is liquid if >=40% of its buckets are liquid, illiquid if >=40%
   are illiquid, otherwise mixed.
 
 Coverage:
-  Illiquid stocks  → HAR-RV + WLS (primary)
-  Mixed stocks     → HAR-RV + WLS (both run; winner reported per stock)
-  Liquid stocks    → skipped (EGARCH-X / Jisu handles these)
+  Illiquid stocks  -> HAR-RV + WLS (primary)
+  Mixed stocks     -> HAR-RV + WLS (both run; winner reported per stock)
+  Liquid stocks    -> skipped (EGARCH-X / Jisu handles these)
 
 Outputs:
   Per-stock (m4_outputs/stock_{id}/):
-    rosa_har_rv_eval_results.csv    — QLIKE + MSE per time_id (OLS)
-    rosa_wls_eval_results.csv       — QLIKE + MSE per time_id (WLS)
-    rosa_har_rv_params.csv          — HAR coefficients (OLS)
-    rosa_wls_params.csv             — HAR coefficients (WLS)
-    rosa_har_rv_forecasts.csv       — raw predictions vs actuals (OLS)
-    rosa_model_comparison.png       — OLS vs WLS comparison plot
-    rosa_har_rv_summary.png         — per-stock evaluation plot
+    rosa_har_rv_eval_results.csv    - QLIKE + MSE per time_id (OLS)
+    rosa_wls_eval_results.csv       - QLIKE + MSE per time_id (WLS)
+    rosa_har_rv_params.csv          - HAR coefficients (OLS)
+    rosa_wls_params.csv             - HAR coefficients (WLS)
+    rosa_har_rv_forecasts.csv       - raw predictions vs actuals (OLS)
+    rosa_model_comparison.png       - OLS vs WLS comparison plot
+    rosa_har_rv_summary.png         - per-stock evaluation plot
 
   Aggregate (m4_outputs/):
-    har_rv_stock_liquidity_profile.csv  — Rosa's liquidity profile (all stocks)
+    har_rv_stock_liquidity_profile.csv  - Rosa's liquidity profile (all stocks)
     har_rv_top10_liquid_stocks.csv
     har_rv_top10_illiquid_stocks.csv
-    all_stocks_har_rv_summary.csv       — HAR-RV + WLS metrics per stock
+    all_stocks_har_rv_summary.csv       - HAR-RV + WLS metrics per stock
     rosa_01_har_rv_performance.png
     rosa_02_har_rv_residuals.png
-    rosa_03_ols_vs_wls.png              — OLS vs WLS head-to-head across stocks
+    rosa_03_ols_vs_wls.png              - OLS vs WLS head-to-head across stocks
 """
 
 import os
@@ -61,7 +61,7 @@ from sklearn.linear_model import LinearRegression
 
 warnings.filterwarnings("ignore")
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# Paths
 INPUT_CSV = r"C:\Users\songj\OneDrive\UNI\Y3SEM1\DATA3888\Project Folder\DATA3888G08\optiver_aggregated.csv"
 
 from config import (get_selected_stocks, get_liquidity_map, filter_time_ids,
@@ -72,24 +72,17 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 LIQUIDITY_PROFILE_PATH = os.path.join(OUTPUT_DIR, "har_rv_stock_liquidity_profile.csv")
 
 # WLS decay: weight for bucket i from end = exp(-WLS_DECAY * (n - 1 - i))
-# λ = 0.05 → recent buckets ~2.2x more weight than oldest; λ = 0.1 → ~4.5x
+# lambda = 0.05 -> recent buckets ~2.2x more weight than oldest; lambda = 0.1 -> ~4.5x
 WLS_DECAY = 0.05
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  Step 0 — Generate Rosa's liquidity profile
-#
-#  Must run BEFORE config.get_liquidity_map() / get_selected_stocks() because
-#  config.py looks for this file as its primary liquidity source.
-# ══════════════════════════════════════════════════════════════════════════════
 
 def build_liquidity_profile(df):
     """
     Build Rosa's bucket-level liquidity profile and save to OUTPUT_DIR.
 
     Uses:
-      liquid   = BAS ≤ q33 AND log(1 + 1/BAS) ≥ q66
-      illiquid = BAS ≥ q66 AND log(1 + 1/BAS) ≤ q33
+      liquid   = BAS <= q33 AND log(1 + 1/BAS) >= q66
+      illiquid = BAS >= q66 AND log(1 + 1/BAS) <= q33
       mixed    = everything else
 
     Stock regime determined by 40% threshold on bucket counts.
@@ -99,24 +92,24 @@ def build_liquidity_profile(df):
       har_rv_top10_illiquid_stocks.csv
     Returns the stock-level profile DataFrame.
     """
-    print("\n── Building Rosa's liquidity profile ───────────────────────────────")
+    print("\nBuilding Rosa's liquidity profile ...")
 
     liq = df[["stock_id", "time_id", "time_bucket", "BidAskSpread_mean", "RV"]].copy()
     liq = liq.rename(columns={"BidAskSpread_mean": "bas", "RV": "rv"})
     liq["time_bucket"] = liq["time_bucket"].astype(int)
 
-    # Use buckets 1–16 (training window, same as HAR-RV)
+    # Use buckets 1-16 (training window, same as HAR-RV)
     liq = liq[liq["time_bucket"].between(1, 16)].copy()
 
     # Inverse-spread as activity proxy (WAP not available in aggregated file)
-    liq["inv_spread"]    = 1.0 / (liq["bas"] + 1e-6)
-    liq["log_activity"]  = np.log1p(liq["inv_spread"])
+    liq["inv_spread"] = 1.0 / (liq["bas"] + 1e-6)
+    liq["log_activity"] = np.log1p(liq["inv_spread"])
 
     # Global quantile thresholds
-    bas_q33  = liq["bas"].quantile(0.33)
-    bas_q66  = liq["bas"].quantile(0.66)
-    act_q33  = liq["log_activity"].quantile(0.33)
-    act_q66  = liq["log_activity"].quantile(0.66)
+    bas_q33 = liq["bas"].quantile(0.33)
+    bas_q66 = liq["bas"].quantile(0.66)
+    act_q33 = liq["log_activity"].quantile(0.33)
+    act_q66 = liq["log_activity"].quantile(0.66)
 
     print(f"  BAS    q33={bas_q33:.6f}  q66={bas_q66:.6f}")
     print(f"  logAct q33={act_q33:.4f}  q66={act_q66:.4f}")
@@ -147,7 +140,7 @@ def build_liquidity_profile(df):
     )
 
     def _stock_regime(row):
-        if row["liquid_pct"]   >= 0.40: return "liquid"
+        if row["liquid_pct"] >= 0.40: return "liquid"
         if row["illiquid_pct"] >= 0.40: return "illiquid"
         return "mixed"
 
@@ -168,10 +161,6 @@ def build_liquidity_profile(df):
     return profile
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  Loss function
-# ══════════════════════════════════════════════════════════════════════════════
-
 def qlike(pred, actual):
     """QLIKE = log(pred) + actual/pred  (lower = better). Variance form."""
     if pred <= 0 or actual < 0 or not np.isfinite(pred):
@@ -180,27 +169,19 @@ def qlike(pred, actual):
     return np.log(pred) + actual / pred
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  HAR-RV feature builder
-# ══════════════════════════════════════════════════════════════════════════════
-
 def build_har_features(rv_series):
     """
     Returns (rv_d, rv_w, rv_m) from a training RV array:
       rv_d = last value          (daily component)
       rv_w = mean of last 5     (weekly component)
-      rv_m = mean of all ≤16    (monthly component)
+      rv_m = mean of all <=16   (monthly component)
     """
-    rv   = np.asarray(rv_series, dtype=np.float64)
+    rv = np.asarray(rv_series, dtype=np.float64)
     rv_d = rv[-1]
     rv_w = rv[-min(5,  len(rv)):].mean()
     rv_m = rv[-min(16, len(rv)):].mean()
     return rv_d, rv_w, rv_m
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  HAR-RV fitting — OLS and WLS
-# ══════════════════════════════════════════════════════════════════════════════
 
 def fit_har_rv(vol_train_dict, vol_val_dict, time_ids, decay=0.0):
     """
@@ -211,16 +192,16 @@ def fit_har_rv(vol_train_dict, vol_val_dict, time_ids, decay=0.0):
 
     Returns (eval_df, param_df, forecast_df).
     """
-    use_wls      = decay > 0
-    model_label  = f"WLS-HAR-RV (λ={decay})" if use_wls else "HAR-RV (OLS)"
+    use_wls = decay > 0
+    model_label = f"WLS-HAR-RV (lambda={decay})" if use_wls else "HAR-RV (OLS)"
 
-    eval_records     = []
-    param_records    = []
+    eval_records = []
+    param_records = []
     forecast_records = []
 
     for tid in time_ids:
         rv_train = vol_train_dict[tid]["RV"].values
-        rv_val   = vol_val_dict[tid]["RV"].values
+        rv_val = vol_val_dict[tid]["RV"].values
 
         if len(rv_train) < 6:
             continue
@@ -245,11 +226,11 @@ def fit_har_rv(vol_train_dict, vol_val_dict, time_ids, decay=0.0):
         X_fit = np.array(X_fit)
         y_fit = np.array(y_fit)
 
-        # WLS weights: exp(λ * (i - (T-1))) where i is position index
+        # WLS weights: exp(lambda * (i - (T-1))) where i is position index
         if use_wls:
-            n     = len(y_fit)
-            idxs  = np.arange(n)
-            w_arr = np.exp(decay * (idxs - (n - 1)))   # most recent → weight 1
+            n = len(y_fit)
+            idxs = np.arange(n)
+            w_arr = np.exp(decay * (idxs - (n - 1)))   # most recent -> weight 1
         else:
             w_arr = None
 
@@ -261,11 +242,11 @@ def fit_har_rv(vol_train_dict, vol_val_dict, time_ids, decay=0.0):
 
         pred_rv = float(model.predict(X_pred)[0])
         pred_rv = max(pred_rv, 1e-8)
-        actual  = float(rv_val.mean())
+        actual = float(rv_val.mean())
 
-        q   = qlike(pred_rv, actual)
+        q = qlike(pred_rv, actual)
         mse = (actual - pred_rv) ** 2
-        r2  = model.score(X_fit, y_fit, sample_weight=w_arr)
+        r2 = model.score(X_fit, y_fit, sample_weight=w_arr)
 
         eval_records.append({
             "time_id":   tid,
@@ -299,41 +280,35 @@ def fit_har_rv(vol_train_dict, vol_val_dict, time_ids, decay=0.0):
             pd.DataFrame(forecast_records))
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  Load data + generate liquidity profile
-# ══════════════════════════════════════════════════════════════════════════════
+# Load data and generate liquidity profile
 
 print("Loading data ...")
 df = pd.read_csv(INPUT_CSV)
 print(f"  {df['stock_id'].nunique()} stocks found.")
 
-# Build Rosa's liquidity profile FIRST so config.py can use it
+# Build Rosa's liquidity profile first so config.py can use it
 liquidity_profile = build_liquidity_profile(df)
 
-# Read stock selection from CSV — do NOT pass df so auto-selection is blocked.
+# Read stock selection from CSV - do NOT pass df so auto-selection is blocked.
 # selected_stocks.csv is the sole source of truth for which stocks are processed.
-selected          = get_selected_stocks()
-liquid_selected   = selected["liquid"]
+selected = get_selected_stocks()
+liquid_selected = selected["liquid"]
 illiquid_selected = selected["illiquid"]
-mixed_selected    = selected.get("mixed", [])
-rosa_stocks       = selected["all"]   # all 60 — consistent with arma_jisu.py
+mixed_selected = selected.get("mixed", [])
+rosa_stocks = selected["all"]   # all 60 - consistent with arma_jisu.py
 
 liquidity_map = get_liquidity_map()
 
-print(f"\n── Stock coverage ───────────────────────────────────────────────────")
+print(f"\nStock coverage:")
 print(f"  Liquid   ({len(liquid_selected)}):   HAR-RV + WLS (baseline; EGARCH-X is recommended)")
 print(f"  Illiquid ({len(illiquid_selected)}): HAR-RV + WLS (primary regime)")
 print(f"  Mixed    ({len(mixed_selected)}): HAR-RV + WLS (both models, winner reported)")
 print(f"  Total Rosa stocks: {len(rosa_stocks)} (same 60 as arma_jisu.py)")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  Main loop
-# ══════════════════════════════════════════════════════════════════════════════
-
-C_OLS  = "#D85A30"   # orange — HAR-RV OLS
-C_WLS  = "#1D9E75"   # green  — WLS
-SPINE  = "#D3D1C7"
+C_OLS = "#D85A30"   # orange - HAR-RV OLS
+C_WLS = "#1D9E75"   # green  - WLS
+SPINE = "#D3D1C7"
 
 all_har_summary = []
 
@@ -357,37 +332,36 @@ for STOCK_ID in rosa_stocks:
         if len(buckets) < N_TRAIN + N_VAL:
             continue
         vol_train[tid] = buckets.iloc[:N_TRAIN].copy()
-        vol_val[tid]   = buckets.iloc[N_TRAIN : N_TRAIN + N_VAL].copy()
+        vol_val[tid] = buckets.iloc[N_TRAIN : N_TRAIN + N_VAL].copy()
 
     time_IDs = list(vol_train.keys())
     if not time_IDs:
-        print("  No complete time_ids — skipping.")
+        print("  No complete time_ids - skipping.")
         continue
 
-    n_total  = len(time_IDs)
+    n_total = len(time_IDs)
     time_IDs = filter_time_ids(vol_train, time_IDs, regime)
     vol_train = {tid: vol_train[tid] for tid in time_IDs}
-    vol_val   = {tid: vol_val[tid]   for tid in time_IDs if tid in vol_val}
-    print(f"  time_ids: {n_total} total → {len(time_IDs)} kept ({regime})")
+    vol_val = {tid: vol_val[tid] for tid in time_IDs if tid in vol_val}
+    print(f"  time_ids: {n_total} total -> {len(time_IDs)} kept ({regime})")
 
-    # ── Fit OLS ───────────────────────────────────────────────────────────────
+    # Fit OLS
     ols_eval, ols_params, ols_fc = fit_har_rv(vol_train, vol_val, time_IDs, decay=0.0)
 
-    # ── Fit WLS ───────────────────────────────────────────────────────────────
+    # Fit WLS
     wls_eval, wls_params, wls_fc = fit_har_rv(vol_train, vol_val, time_IDs, decay=WLS_DECAY)
 
     if ols_eval.empty and wls_eval.empty:
-        print("  No valid forecasts — skipping.")
+        print("  No valid forecasts - skipping.")
         continue
 
-    # ── Save per-stock outputs ────────────────────────────────────────────────
+    # Save per-stock outputs
     ols_eval.to_csv(  os.path.join(stock_out, "rosa_har_rv_eval_results.csv"), index=False)
     wls_eval.to_csv(  os.path.join(stock_out, "rosa_wls_eval_results.csv"),    index=False)
     ols_params.to_csv(os.path.join(stock_out, "rosa_har_rv_params.csv"),       index=False)
     wls_params.to_csv(os.path.join(stock_out, "rosa_wls_params.csv"),          index=False)
     ols_fc.to_csv(    os.path.join(stock_out, "rosa_har_rv_forecasts.csv"),    index=False)
 
-    # ── Metrics ───────────────────────────────────────────────────────────────
     def _metrics(eval_df, label):
         if eval_df.empty:
             return np.nan, np.nan, 0
@@ -402,12 +376,12 @@ for STOCK_ID in rosa_stocks:
 
     winner = "WLS" if (np.isfinite(wls_q) and np.isfinite(ols_q) and wls_q < ols_q) \
              else "OLS"
-    print(f"  → {winner} wins on QLIKE for Stock {STOCK_ID}")
+    print(f"  -> {winner} wins on QLIKE for Stock {STOCK_ID}")
 
-    # ── Per-stock comparison plot ─────────────────────────────────────────────
+    # Per-stock comparison plot
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     fig.patch.set_facecolor("white")
-    fig.suptitle(f"HAR-RV vs WLS — Stock {STOCK_ID} ({regime})",
+    fig.suptitle(f"HAR-RV vs WLS - Stock {STOCK_ID} ({regime})",
                  fontsize=11, fontweight="500")
 
     def _ax_style(ax):
@@ -456,7 +430,7 @@ for STOCK_ID in rosa_stocks:
 
     # HAR coefficients comparison
     if not ols_params.empty and not wls_params.empty:
-        cats = ["β daily", "β weekly", "β monthly"]
+        cats = ["beta daily", "beta weekly", "beta monthly"]
         ols_means = [ols_params["beta_daily"].mean(),
                      ols_params["beta_weekly"].mean(),
                      ols_params["beta_monthly"].mean()]
@@ -482,7 +456,7 @@ for STOCK_ID in rosa_stocks:
         ols_per_tid = ols_eval.groupby("time_id")[["QLIKE","MSE"]].mean()
         fig2, axes2 = plt.subplots(1, 2, figsize=(10, 4))
         fig2.patch.set_facecolor("white")
-        fig2.suptitle(f"HAR-RV — Stock {STOCK_ID} ({regime})", fontsize=11, fontweight="500")
+        fig2.suptitle(f"HAR-RV - Stock {STOCK_ID} ({regime})", fontsize=11, fontweight="500")
         for ax in axes2: _ax_style(ax)
 
         axes2[0].scatter(ols_fc["actual_RV"], ols_fc["pred_RV"],
@@ -532,10 +506,6 @@ for STOCK_ID in rosa_stocks:
     })
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  Aggregate summary
-# ══════════════════════════════════════════════════════════════════════════════
-
 if not all_har_summary:
     print("\nNo HAR-RV results to summarise.")
 else:
@@ -544,7 +514,7 @@ else:
     print(f"\nSaved: all_stocks_har_rv_summary.csv")
 
     illiq_s = summary_df[summary_df["liquidity_regime"] == "illiquid"]
-    mixed_s  = summary_df[summary_df["liquidity_regime"] == "mixed"]
+    mixed_s = summary_df[summary_df["liquidity_regime"] == "mixed"]
 
     print(f"\n{'='*60}")
     print(f"  HAR-RV + WLS across {len(summary_df)} stocks:")
@@ -559,7 +529,7 @@ else:
     print(f"  WLS wins on QLIKE: {n_wls_wins}/{len(summary_df)} stocks")
     print(f"{'='*60}\n")
 
-    # ── Aggregate plot 1: QLIKE per stock (OLS vs WLS bars) ──────────────────
+    # Aggregate plot 1: QLIKE per stock (OLS vs WLS bars)
     fig, ax = plt.subplots(figsize=(max(10, len(summary_df)*0.65), 5))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
@@ -573,7 +543,7 @@ else:
     ax.set_xticklabels(summary_df["stock_id"].astype(str),
                        rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Median QLIKE", fontsize=10)
-    ax.set_title("HAR-RV OLS vs WLS — QLIKE per Stock", fontsize=12, fontweight="bold")
+    ax.set_title("HAR-RV OLS vs WLS - QLIKE per Stock", fontsize=12, fontweight="bold")
     ax.legend(fontsize=9)
     ax.grid(axis="y", color=SPINE, linewidth=0.4, linestyle="--"); ax.set_axisbelow(True)
     plt.tight_layout()
@@ -581,7 +551,7 @@ else:
                 dpi=150, bbox_inches="tight")
     plt.close()
 
-    # ── Aggregate plot 2: QLIKE by regime ────────────────────────────────────
+    # Aggregate plot 2: QLIKE by regime
     fig, axes = plt.subplots(1, 2, figsize=(11, 5))
     fig.patch.set_facecolor("white")
     fig.suptitle("HAR-RV Performance by Liquidity Regime",
@@ -592,9 +562,9 @@ else:
         ax = axes[i]
         ax.set_facecolor("white")
         for sp in ax.spines.values(): sp.set_color(SPINE); sp.set_linewidth(0.6)
-        groups  = summary_df.groupby("liquidity_regime")[metric].apply(list)
+        groups = summary_df.groupby("liquidity_regime")[metric].apply(list)
         labels_ = list(groups.index)
-        data_   = [groups[l] for l in labels_]
+        data_ = [groups[l] for l in labels_]
         if data_:
             bp = ax.boxplot(data_, labels=labels_, patch_artist=True, widths=0.4,
                             medianprops=dict(color="white", linewidth=2),
@@ -611,7 +581,7 @@ else:
                 dpi=150, bbox_inches="tight")
     plt.close()
 
-    # ── Aggregate plot 3: OLS vs WLS head-to-head scatter ────────────────────
+    # Aggregate plot 3: OLS vs WLS head-to-head scatter
     fig, ax = plt.subplots(figsize=(7, 6))
     fig.patch.set_facecolor("white"); ax.set_facecolor("white")
     for sp in ax.spines.values(): sp.set_color(SPINE); sp.set_linewidth(0.6)
@@ -635,7 +605,7 @@ else:
     ax.legend(handles=leg_els, fontsize=8)
     ax.set_xlabel("OLS Median QLIKE", fontsize=10)
     ax.set_ylabel("WLS Median QLIKE", fontsize=10)
-    ax.set_title("OLS vs WLS Head-to-Head\n(below diagonal → WLS wins)",
+    ax.set_title("OLS vs WLS Head-to-Head\n(below diagonal -> WLS wins)",
                  fontsize=11, fontweight="bold")
     ax.grid(color=SPINE, linewidth=0.4, linestyle="--"); ax.set_axisbelow(True)
     plt.tight_layout()
