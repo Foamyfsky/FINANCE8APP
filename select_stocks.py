@@ -119,9 +119,9 @@ print("="*60)
 
 stock_bas = df.groupby("stock_id")["BidAskSpread_mean"].median()
 rows = (
-    [{"stock_id": s, "regime": "liquid",   "median_BAS": stock_bas.get(s)} for s in liquid_sel] +
+    [{"stock_id": s, "regime": "liquid", "median_BAS": stock_bas.get(s)} for s in liquid_sel] +
     [{"stock_id": s, "regime": "illiquid", "median_BAS": stock_bas.get(s)} for s in illiquid_sel] +
-    [{"stock_id": s, "regime": "mixed",    "median_BAS": stock_bas.get(s)} for s in mixed_sel]
+    [{"stock_id": s, "regime": "mixed", "median_BAS": stock_bas.get(s)} for s in mixed_sel]
 )
 out_csv = os.path.join(OUTPUT_DIR, "selected_stocks.csv")
 pd.DataFrame(rows).sort_values("stock_id").to_csv(out_csv, index=False)
@@ -130,9 +130,9 @@ print(f"\n  Saved -> {out_csv}")
 print("""
 Next steps:
   1. Copy the ids above into config.py:
-       LIQUID_STOCKS   = [...]
+       LIQUID_STOCKS = [...]
        ILLIQUID_STOCKS = [...]
-       MIXED_STOCKS    = [...]
+       MIXED_STOCKS = [...]
   2. Share config.py with your groupmates.
   3. Run:  py rosa.py  then  py arma_jisu.py
 """)
