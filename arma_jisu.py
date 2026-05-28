@@ -1,26 +1,22 @@
 """
-M4 - Volatility Forecasting: ARMA(1,1)-GARCH(1,1) and EGARCH(1,1,1)-X
-DATA3888 Group 8
-
-Pipeline:
+ARMA(1,1)-GARCH(1,1)/GJR-GARCH and EGARCH(1,1,1)-X modelling
+Steps taken:
   Phase 1 - Data diagnostics (ACF/PACF, AIC/BIC order selection)
-  Phase 2 - Baseline ARMA(1,1)-GARCH(1,1) -> residual diagnostics
-             -> adaptive upgrade to GJR-GARCH + Student-t if patterns detected
-  Phase 3 - EGARCH-X with direct one-step-ahead forecast (no Monte Carlo)
-             -> runs on liquid AND mixed stocks
+  Phase 2 - Baseline ARMA(1,1)-GARCH(1,1) -> residual diagnostics -> adaptive upgrade to GJR-GARCH + Student-t if patterns detected
+  Phase 3 - EGARCH-X with direct one-step-ahead forecast (no Monte Carlo)-> runs on liquid AND mixed stocks
   Phase 4 - Comparison plots, time_id tracking, and CSV evaluation
 
-Data format (from M1):
-  stock_id | time_id | time_bucket | BidAskSpread_mean | RV
+Data format needed
+  stock_id, time_id, time_bucket,  BidAskSpread_mean, RV
   20 buckets per time_id (30s each), numbered 2-21
   First 16 buckets = train, last 4 = validation
 
-Key improvements over previous version:
+improvements over previous versions:
   - Monte Carlo removed from EGARCH-X -- uses deterministic one-step forecast
   - Residual diagnostics: Ljung-Box on squared residuals -> GJR-GARCH + t-dist
   - HAR-like extended mean (lags 1, 5) for longer memory
   - Mixed stocks (score 0.3-0.7): run both models, pick winner per stock
-  - Full time_id accounting: attempted / succeeded / missed all reported
+  - Full time_id accounting: attempted/succeeded/missed all reported
   - QLIKE + MSE computed for every uploaded CSV regardless of regime
 """
 
@@ -166,7 +162,7 @@ class EGARCHX(EGARCH):
         return sigma2
 
     def simulate(self, parameters, nobs, rng, burn=500, initial_value=None):
-        """Kept for compatibility but no longer called in main pipeline."""
+        """keep for compatibility but no longer called in main pipeline."""
         p, o, q = self.p, self.o, self.q
         parameters = np.asarray(parameters, dtype=float)
         omega = parameters[0]
@@ -254,11 +250,11 @@ def residual_diagnostics(res):
             notes.append("No patterns in residuals - GARCH(1,1) normal is appropriate")
 
         return {
-            "arch_effect":     arch_effect,
+            "arch_effect": arch_effect,
             "autocorr_effect": autocorr_effect,
-            "fat_tails":       fat_tails,
-            "leverage":        leverage,
-            "notes":           notes,
+            "fat_tails": fat_tails,
+            "leverage": leverage,
+            "notes": notes,
         }
 
     except Exception as e:
@@ -324,11 +320,11 @@ def forecast_one_step(res, scale=1000.0):
     """
     Deterministic one-step-ahead forecast of RV.
 
-    Uses the ARX mean equation: E[RV_{t+1}] = Const + phi*RV_t
+    Uses the ARX mean equation: E[RV_{t+1}] = const + phi*RV_t
     This is stable, non-simulated, and works for GARCH, GJR-GARCH, and EGARCH-X.
 
     The GARCH/EGARCH-X variance sigma^2_{t+1} tells us the UNCERTAINTY of the forecast,
-    not the level. We report both the point forecast and +/-1 sigma bounds.
+    not the level. report both the point forecast and +/-1 sigma bounds.
 
     Returns: (pred_rv, lower_bound, upper_bound) all in raw RV units.
     """
@@ -341,7 +337,7 @@ def forecast_one_step(res, scale=1000.0):
         if np.isfinite(pred_mean) and pred_mean > 0:
             return pred_mean, max(pred_mean - pred_std, 1e-8), pred_mean + pred_std
 
-        # Fallback: last fitted conditional mean
+        # FALLBACK: last fitted conditional mean
         last_rv = float(res.resid[-1] + res.conditional_volatility[-1]) / scale
         return max(last_rv, 1e-8), max(last_rv * 0.8, 1e-8), last_rv * 1.2
 
@@ -420,9 +416,9 @@ def egarchx_passes_sanity_check(res):
         return False
     try:
         return (
-            abs(res.params.get("gamma[1]",      99)) < 5 and
+            abs(res.params.get("gamma[1]", 99)) < 5 and
             abs(res.params.get("delta[spread]", 99)) < 5 and
-            abs(res.params.get("beta[1]",        1)) < 0.9999
+            abs(res.params.get("beta[1]", 1)) < 0.9999
         )
     except Exception:
         return False
@@ -452,22 +448,22 @@ def evaluate_preds(preds_dict, vol_val_dict, model_label="model"):
         for bucket_idx, actual in enumerate(val_rvs):
             q = qlike(pred, actual)
             records.append({
-                "time_id":    tid,
+                "time_id": tid,
                 "bucket_idx": bucket_idx,
-                "pred_RV":    pred,
-                "actual_RV":  actual,
-                "QLIKE":      q if np.isfinite(q) else np.nan,
-                "MSE":        (actual - pred) ** 2 if np.isfinite(pred) else np.nan,
-                "model":      model_label,
+                "pred_RV": pred,
+                "actual_RV": actual,
+                "QLIKE": q if np.isfinite(q) else np.nan,
+                "MSE": (actual - pred) ** 2 if np.isfinite(pred) else np.nan,
+                "model": model_label,
             })
 
     df = pd.DataFrame(records)
     tracking = {
-        "n_val_tids":  len(all_val_tids),
+        "n_val_tids": len(all_val_tids),
         "n_succeeded": len(succeeded),
-        "n_missed":    len(missed),
+        "n_missed": len(missed),
         "missed_tids": missed,
-        "miss_rate":   len(missed) / max(len(all_val_tids), 1),
+        "miss_rate": len(missed) / max(len(all_val_tids), 1),
     }
     return df, tracking
 
@@ -746,12 +742,12 @@ else:
 
     with open(TUNING_CACHE, "w") as f:
         json.dump({
-            "garch_p":    GLOBAL_GARCH_P,
-            "garch_q":    GLOBAL_GARCH_Q,
+            "garch_p": GLOBAL_GARCH_P,
+            "garch_q": GLOBAL_GARCH_Q,
             "garch_dist": GLOBAL_GARCH_DIST,
-            "egarchx_p":  GLOBAL_EGARCHX_P,
-            "egarchx_o":  GLOBAL_EGARCHX_O,
-            "egarchx_q":  GLOBAL_EGARCHX_Q,
+            "egarchx_p": GLOBAL_EGARCHX_P,
+            "egarchx_o": GLOBAL_EGARCHX_O,
+            "egarchx_q": GLOBAL_EGARCHX_Q,
         }, f, indent=2)
     print(f"  Tuning results cached to: {TUNING_CACHE}")
 
@@ -902,8 +898,8 @@ for STOCK_ID in selected_ids:
 
     # Fat tails -> t-distribution (default already set)
     # Leverage -> GJR-GARCH (asymmetric)
-    use_gjr = pct_leverage > 0.3     # >30% of series show leverage
-    use_t_dist = pct_fat > 0.25     # >25% show fat tails
+    use_gjr = pct_leverage > 0.3 # >30% of series show leverage
+    use_t_dist = pct_fat > 0.25 # >25% show fat tails
     final_dist = "t" if use_t_dist else garch_dist_initial
 
     if use_gjr:
@@ -931,14 +927,14 @@ for STOCK_ID in selected_ids:
     print(f"  Final GARCH model: {garch_model_label}")
 
     diag_row = {
-        "stock_id":        STOCK_ID,
-        "regime":          regime,
-        "n_diag_sample":   len(diag_sample),
+        "stock_id": STOCK_ID,
+        "regime": regime,
+        "n_diag_sample": len(diag_sample),
         "pct_arch_effect": round(pct_arch, 3),
-        "pct_autocorr":    round(pct_autocorr, 3),
-        "pct_fat_tails":   round(pct_fat, 3),
-        "pct_leverage":    round(pct_leverage, 3),
-        "model_selected":  garch_model_label,
+        "pct_autocorr": round(pct_autocorr, 3),
+        "pct_fat_tails": round(pct_fat, 3),
+        "pct_leverage": round(pct_leverage, 3),
+        "model_selected": garch_model_label,
     }
     all_diag_summary.append(diag_row)
 
@@ -954,14 +950,14 @@ for STOCK_ID in selected_ids:
         alpha_val = res.params.get("alpha[1]", np.nan) if converged else np.nan
         beta_val = res.params.get("beta[1]", np.nan) if converged else np.nan
         garch_info.append({
-            "time_id":    tid,
-            "AIC":        res.aic if converged else np.nan,
-            "BIC":        res.bic if converged else np.nan,
-            "converged":  converged,
+            "time_id": tid,
+            "AIC": res.aic if converged else np.nan,
+            "BIC": res.bic if converged else np.nan,
+            "converged": converged,
             "stationary": stationary,
-            "alpha":      alpha_val,
-            "beta":       beta_val,
-            "model":      garch_model_label,
+            "alpha": alpha_val,
+            "beta": beta_val,
+            "model": garch_model_label,
         })
 
     garch_fit_df = pd.DataFrame(garch_info)
@@ -969,8 +965,8 @@ for STOCK_ID in selected_ids:
 
     n_conv = garch_fit_df["converged"].sum()
     n_stat = garch_fit_df["stationary"].sum()
-    print(f"  Converged:  {n_conv}/{len(garch_fit_df)} ({100*n_conv/max(len(garch_fit_df),1):.1f}%)")
-    print(f"  Stationary: {n_stat}/{len(garch_fit_df)} ({100*n_stat/max(len(garch_fit_df),1):.1f}%)")
+    print(f"Converged: {n_conv}/{len(garch_fit_df)} ({100*n_conv/max(len(garch_fit_df),1):.1f}%)")
+    print(f"Stationary: {n_stat}/{len(garch_fit_df)} ({100*n_stat/max(len(garch_fit_df),1):.1f}%)")
 
     print(f"\n  Generating GARCH one-step-ahead forecasts ...")
     garch_preds = {}
@@ -985,7 +981,7 @@ for STOCK_ID in selected_ids:
             garch_preds[tid] = pred
             garch_bounds[tid] = (lb, ub)
 
-    print(f"  Forecasts generated: {len(garch_preds)} / {len(time_IDs)} attempted")
+    print(f"  Forecasts generated: {len(garch_preds)}/{len(time_IDs)} attempted")
 
     garch_eval_df, garch_tracking = evaluate_preds(garch_preds, vol_val, garch_model_label)
     garch_eval_df.to_csv(os.path.join(stock_out, "garch_eval_results.csv"), index=False)
@@ -994,16 +990,16 @@ for STOCK_ID in selected_ids:
                      if not garch_eval_df.empty else pd.DataFrame(columns=["QLIKE","MSE"]))
 
     print(f"\n  Time_id accounting (GARCH):")
-    print(f"    Total in val set:  {garch_tracking['n_val_tids']}")
-    print(f"    Got predictions:   {garch_tracking['n_succeeded']}")
-    print(f"    Missed (no pred):  {garch_tracking['n_missed']} ({garch_tracking['miss_rate']:.1%})")
+    print(f"Total in val set: {garch_tracking['n_val_tids']}")
+    print(f"Got predictions: {garch_tracking['n_succeeded']}")
+    print(f"Missed (no pred): {garch_tracking['n_missed']} ({garch_tracking['miss_rate']:.1%})")
     if garch_tracking['missed_tids'][:5]:
         print(f"    First missed IDs:  {garch_tracking['missed_tids'][:5]}")
 
     if not garch_per_tid.empty:
-        print(f"  Median QLIKE: {garch_per_tid['QLIKE'].median():.4f}")
-        print(f"  Mean   QLIKE: {garch_per_tid['QLIKE'].mean():.4f}")
-        print(f"  Median MSE:   {garch_per_tid['MSE'].median():.8f}")
+        print(f"Median QLIKE: {garch_per_tid['QLIKE'].median():.4f}")
+        print(f"Mean QLIKE: {garch_per_tid['QLIKE'].mean():.4f}")
+        print(f"Median MSE: {garch_per_tid['MSE'].median():.8f}")
 
     # Blowup detection (illiquid stocks only)
     if regime == "illiquid" and not garch_eval_df.empty:
@@ -1018,7 +1014,7 @@ for STOCK_ID in selected_ids:
     else:
         blowup_pct = 0.0
 
-    print("  Plotting residual diagnostics ...")
+    print("Plotting residual diagnostics ...")
     if not garch_models:
         pass
     else:
@@ -1080,7 +1076,7 @@ for STOCK_ID in selected_ids:
 
     if not run_egarchx:
         print("\n-- Phase 3: EGARCH-X SKIPPED (illiquid)")
-        print("   -> Rosa's HAR-RV handles this regime.")
+        print("-> Rosa's HAR-RV handles this regime.")
         egarchx_blowup_pct = np.nan
 
     else:
@@ -1088,9 +1084,9 @@ for STOCK_ID in selected_ids:
 
         best_p, best_o, best_q = GLOBAL_EGARCHX_P, GLOBAL_EGARCHX_O, GLOBAL_EGARCHX_Q
         egarchx_tune_df.to_csv(os.path.join(stock_out, "egarchx_tuning.csv"), index=False)
-        print(f"  Order: EGARCH-X({best_p},{best_o},{best_q})")
+        print(f" Order: EGARCH-X({best_p},{best_o},{best_q})")
 
-        print(f"  Fitting ({len(time_IDs)} time_ids, parallel) ...")
+        print(f" Fitting ({len(time_IDs)} time_ids, parallel) ...")
         egarchx_results = Parallel(n_jobs=N_JOBS, prefer="threads")(
             delayed(_fit_egarchx_one)(
                 tid,
@@ -1111,14 +1107,14 @@ for STOCK_ID in selected_ids:
             quality_ok = egarchx_passes_sanity_check(res)
             egarchx_models[tid] = (res, vol_obj)
             egarchx_info.append({
-                "time_id":    tid,
-                "AIC":        res.aic if converged else np.nan,
-                "BIC":        res.bic if converged else np.nan,
+                "time_id": tid,
+                "AIC": res.aic if converged else np.nan,
+                "BIC": res.bic if converged else np.nan,
                 "converged":  converged,
                 "quality_ok": quality_ok,
-                "gamma":      res.params.get("gamma[1]",      np.nan) if quality_ok else np.nan,
-                "delta":      res.params.get("delta[spread]", np.nan) if quality_ok else np.nan,
-                "beta":       res.params.get("beta[1]",       np.nan) if quality_ok else np.nan,
+                "gamma": res.params.get("gamma[1]", np.nan) if quality_ok else np.nan,
+                "delta": res.params.get("delta[spread]", np.nan) if quality_ok else np.nan,
+                "beta": res.params.get("beta[1]", np.nan) if quality_ok else np.nan,
             })
 
         egarchx_fit_df = pd.DataFrame(egarchx_info)
@@ -1158,13 +1154,13 @@ for STOCK_ID in selected_ids:
 
         if not egarchx_eval_df.empty:
             egarchx_per_tid = egarchx_eval_df.groupby("time_id")[["QLIKE", "MSE"]].mean()
-            print(f"\n  Time_id accounting (EGARCH-X):")
-            print(f"    Total in val set:  {egarchx_tracking['n_val_tids']}")
-            print(f"    Got predictions:   {egarchx_tracking['n_succeeded']}")
-            print(f"    Missed (no pred):  {egarchx_tracking['n_missed']} ({egarchx_tracking['miss_rate']:.1%})")
-            print(f"  Median QLIKE: {egarchx_per_tid['QLIKE'].median():.4f}")
-            print(f"  Mean   QLIKE: {egarchx_per_tid['QLIKE'].mean():.4f}")
-            print(f"  Median MSE:   {egarchx_per_tid['MSE'].median():.8f}")
+            print(f"\n Time_id accounting (EGARCH-X):")
+            print(f" Total in val set: {egarchx_tracking['n_val_tids']}")
+            print(f" Got predictions: {egarchx_tracking['n_succeeded']}")
+            print(f" Missed (no pred): {egarchx_tracking['n_missed']} ({egarchx_tracking['miss_rate']:.1%})")
+            print(f" Median QLIKE: {egarchx_per_tid['QLIKE'].median():.4f}")
+            print(f" Mean QLIKE: {egarchx_per_tid['QLIKE'].mean():.4f}")
+            print(f" Median MSE: {egarchx_per_tid['MSE'].median():.8f}")
 
         egarchx_blowup_pct = np.nan
 
@@ -1224,12 +1220,12 @@ for STOCK_ID in selected_ids:
         ax.grid(axis="y", color=SPINE, linewidth=0.4, linestyle="--", alpha=0.7)
         ax.set_axisbelow(True)
 
-    ex_q   = egarchx_per_tid["QLIKE"].median() if not egarchx_per_tid.empty else float("nan")
-    ex_mse = egarchx_per_tid["MSE"].median()   if not egarchx_per_tid.empty else float("nan")
-    g_q    = garch_per_tid["QLIKE"].median()   if not garch_per_tid.empty   else float("nan")
-    g_mse  = garch_per_tid["MSE"].median()     if not garch_per_tid.empty   else float("nan")
+    ex_q = egarchx_per_tid["QLIKE"].median() if not egarchx_per_tid.empty else float("nan")
+    ex_mse = egarchx_per_tid["MSE"].median() if not egarchx_per_tid.empty else float("nan")
+    g_q = garch_per_tid["QLIKE"].median() if not garch_per_tid.empty else float("nan")
+    g_mse = garch_per_tid["MSE"].median() if not garch_per_tid.empty else float("nan")
 
-    winner_q   = ("EGARCH-X" if ex_q   < g_q   else garch_model_label) if (np.isfinite(ex_q)   and np.isfinite(g_q))   else "N/A"
+    winner_q = ("EGARCH-X" if ex_q < g_q else garch_model_label) if (np.isfinite(ex_q) and np.isfinite(g_q)) else "N/A"
     winner_mse = ("EGARCH-X" if ex_mse < g_mse else garch_model_label) if (np.isfinite(ex_mse) and np.isfinite(g_mse)) else "N/A"
 
     print(f"  +----------------------+--------------+--------------+----------+")
@@ -1249,7 +1245,7 @@ for STOCK_ID in selected_ids:
 
     for row_idx, (eval_df, label, color) in enumerate([
         (garch_eval_df,   garch_model_label, C_GARCH),
-        (egarchx_eval_df, "EGARCH-X",        C_EX),
+        (egarchx_eval_df, "EGARCH-X", C_EX),
     ]):
         if eval_df.empty:
             axes[row_idx][0].text(0.5, 0.5, "Not run for this regime",
@@ -1367,31 +1363,31 @@ for STOCK_ID in selected_ids:
 
     # Collect cross-stock row
     all_garch_summary.append({
-        "stock_id":         STOCK_ID,
-        "regime":           regime,
-        "model":            garch_model_label,
+        "stock_id": STOCK_ID,
+        "regime": regime,
+        "model": garch_model_label,
         "n_time_ids_total": n_total_tids,
-        "n_time_ids_kept":  len(time_IDs),
-        "n_forecasts":      garch_tracking["n_succeeded"],
-        "n_missed":         garch_tracking["n_missed"],
-        "miss_rate":        round(garch_tracking["miss_rate"], 4),
-        "median_QLIKE":     g_q,
-        "median_MSE":       g_mse,
-        "blowup_pct":       round(blowup_pct, 4),
-        "pct_leverage":     round(pct_leverage, 3),
-        "pct_fat_tails":    round(pct_fat, 3),
+        "n_time_ids_kept": len(time_IDs),
+        "n_forecasts": garch_tracking["n_succeeded"],
+        "n_missed": garch_tracking["n_missed"],
+        "miss_rate": round(garch_tracking["miss_rate"], 4),
+        "median_QLIKE": g_q,
+        "median_MSE": g_mse,
+        "blowup_pct": round(blowup_pct, 4),
+        "pct_leverage": round(pct_leverage, 3),
+        "pct_fat_tails":round(pct_fat, 3),
     })
     all_egarchx_summary.append({
-        "stock_id":         STOCK_ID,
-        "regime":           regime,
-        "egarchx_ran":      run_egarchx,
+        "stock_id": STOCK_ID,
+        "regime": regime,
+        "egarchx_ran": run_egarchx,
         "n_time_ids_total": n_total_tids,
-        "n_time_ids_kept":  len(time_IDs),
-        "n_forecasts":      egarchx_tracking["n_succeeded"],
-        "n_missed":         egarchx_tracking["n_missed"],
-        "miss_rate":        round(egarchx_tracking["miss_rate"], 4),
-        "median_QLIKE":     ex_q,
-        "median_MSE":       ex_mse,
+        "n_time_ids_kept": len(time_IDs),
+        "n_forecasts": egarchx_tracking["n_succeeded"],
+        "n_missed": egarchx_tracking["n_missed"],
+        "miss_rate": round(egarchx_tracking["miss_rate"], 4),
+        "median_QLIKE": ex_q,
+        "median_MSE": ex_mse,
     })
 
 
@@ -1516,9 +1512,9 @@ if not garch_df_agg.empty:
 
         ax2 = axes[1]
         ax2.set_facecolor("white")
-        liq_qlike   = garch_df_agg[garch_df_agg["regime"] == "liquid"]["median_QLIKE"].dropna()
+        liq_qlike = garch_df_agg[garch_df_agg["regime"] == "liquid"]["median_QLIKE"].dropna()
         illiq_qlike = illiquid_g["median_QLIKE"].dropna()
-        mix_qlike   = garch_df_agg[garch_df_agg["regime"] == "mixed"]["median_QLIKE"].dropna()
+        mix_qlike = garch_df_agg[garch_df_agg["regime"] == "mixed"]["median_QLIKE"].dropna()
         data_bp = [v.values for v in [liq_qlike, mix_qlike, illiq_qlike] if len(v) > 0]
         labs_bp = [l for l, v in zip(["Liquid","Mixed","Illiquid"],
                                       [liq_qlike, mix_qlike, illiq_qlike]) if len(v) > 0]
@@ -1648,12 +1644,12 @@ if csv_results_all:
     print("Saved: jisu_04_csv_eval_all_models.png")
 
 
-print(f"\nM4 complete -- {len(selected_ids)} stocks processed.")
-print(f"  Liquid   ({len(liquid_sel)}): EGARCH-X + upgraded GARCH")
-print(f"  Illiquid ({len(illiquid_sel)}): GARCH blowup analysis")
-print(f"  Mixed    ({len(mixed_sel)}): Both models, winner per stock")
-print(f"  -> jisu_01: EGARCH-X vs GARCH (liquid+mixed)")
-print(f"  -> jisu_02: GARCH blowups on illiquid")
-print(f"  -> jisu_03: Residual pattern rates (drives upgrade)")
-print(f"  -> jisu_04: All-model QLIKE+MSE on uploaded CSVs")
-print(f"  Per-stock outputs in: {OUTPUT_DIR}/stock_<id>/")
+print(f"\ncomplete -- {len(selected_ids)} stocks processed.")
+print(f" Liquid ({len(liquid_sel)}): EGARCH-X + upgraded GARCH")
+print(f" Illiquid ({len(illiquid_sel)}): GARCH blowup analysis")
+print(f" Mixed ({len(mixed_sel)}): Both models, winner per stock")
+print(f" -> jisu_01: EGARCH-X vs GARCH (liquid+mixed)")
+print(f" -> jisu_02: GARCH blowups on illiquid")
+print(f" -> jisu_03: Residual pattern rates (drives upgrade)")
+print(f" -> jisu_04: All-model QLIKE+MSE on uploaded CSVs")
+print(f"Per-stock outputs in: {OUTPUT_DIR}/stock_<id>/")

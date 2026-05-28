@@ -1,15 +1,11 @@
 """
-final_figures.py - DATA3888 Group 8
-
+final_figures.py 
 Research question:
   "Instead of asking which forecasting model is best for every stock,
    we ask: which model is APPROPRIATE under the current liquidity regime?"
-
 Generates 6 publication-ready figures + a text summary.
-
 Run:
     python final_figures.py
-
 Output:
     m4_outputs/final_figures/fig1_regime_model_heatmap.png
     m4_outputs/final_figures/fig2_per_stock_qlike.png
@@ -44,21 +40,21 @@ with redirect_stdout(io.StringIO()):
     lmap = get_liquidity_map()
 
 C = {
-    "garch":    "#378ADD",
-    "egarchx":  "#1D9E75",
-    "har":      "#D85A30",
-    "lgbm":     "#8B5CF6",
-    "liquid":   "#1D9E75",
+    "garch":"#378ADD",
+    "egarchx": "#1D9E75",
+    "har": "#D85A30",
+    "lgbm":"#8B5CF6",
+    "liquid":"#1D9E75",
     "illiquid": "#D85A30",
-    "mixed":    "#8B5CF6",
-    "spine":    "#D3D1C7",
-    "bg":       "white",
+    "mixed":"#8B5CF6",
+    "spine":"#D3D1C7",
+    "bg": "white",
 }
 MODEL_LABELS = {
-    "garch":   "GARCH(1,1)",
-    "egarchx": "EGARCH-X",
-    "har":     "HAR-RV",
-    "lgbm":    "LightGBM",
+    "garch":"GARCH(1,1)",
+    "egarchx":"EGARCH-X",
+    "har":"HAR-RV",
+    "lgbm":"LightGBM",
 }
 REGIME_ORDER = ["liquid", "mixed", "illiquid"]
 
@@ -351,7 +347,7 @@ fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 fig.patch.set_facecolor(C["bg"])
 fig.suptitle(
     "Bid-Ask Spread as a Regime Signal\n"
-    "Left: BAS distribution by regime   |   Right: BAS vs LGBM gain over GARCH",
+    "Left: BAS distribution by regime, Right: BAS vs LGBM gain over GARCH",
     fontsize=11, fontweight="600"
 )
 

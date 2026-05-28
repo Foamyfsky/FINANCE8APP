@@ -1,17 +1,16 @@
 """
-M4 - Pipeline: Regime-Based Model Router
-DATA3888 Group 8
+pipeline file
 
 Usage:
   python pipeline.py --stock_id 42
   python pipeline.py --stock_id 42 --time_id 15
-  python pipeline.py --all          (runs comparison across all selected stocks)
+  python pipeline.py --all (runs comparison across all selected stocks)
 
-What it does:
+purpose:
   1. Loads Jamie's liquidity classification for the stock
   2. Routes to the correct model's pre-computed forecast:
-       liquid   -> EGARCH-X (with GARCH as baseline)
-       illiquid -> HAR-RV   (with GARCH as baseline)
+       liquid -> EGARCH-X (with GARCH as baseline)
+       illiquid -> HAR-RV (with GARCH as baseline)
   3. Outputs a side-by-side comparison table + plot
   4. Flags if Jisu's outputs are still placeholder data
 
@@ -146,7 +145,7 @@ def run_stock(stock_id, time_id=None, save_plot=True):
                 if filtered.empty:
                     print(f"  time_id {time_id} not found in {name} results")
 
-    # Default recommendation by regime: liquid -> EGARCH-X | illiquid -> HAR-RV | mixed -> LightGBM
+    # Default recommendation by regime
     REGIME_MODEL = {"liquid": "EGARCH-X", "illiquid": "HAR-RV", "mixed": "LightGBM"}
     regime_rec = REGIME_MODEL.get(regime, "HAR-RV")
     fallback = "HAR-RV" if regime in ("liquid", "mixed") else "GARCH"
@@ -239,16 +238,16 @@ def run_stock(stock_id, time_id=None, save_plot=True):
         _plot_comparison(stock_id, regime, results, blowups, recommended)
 
     return {
-        "stock_id":              stock_id,
-        "regime":                regime,
-        "liquidity_score":       float(liq_score) if liq_score is not None else None,
-        "median_BAS":            float(median_bas) if median_bas is not None else None,
-        "recommended_model":     recommended,
+        "stock_id": stock_id,
+        "regime": regime,
+        "liquidity_score": float(liq_score) if liq_score is not None else None,
+        "median_BAS": float(median_bas) if median_bas is not None else None,
+        "recommended_model": recommended,
         "recommended_available": recommended_available,
-        "blowup_count":          len(blowups),
-        "models":                results,
-        "lgbm":                  lgbm_row,
-        "is_placeholder":        is_placeholder(),
+        "blowup_count": len(blowups),
+        "models": results,
+        "lgbm": lgbm_row,
+        "is_placeholder": is_placeholder(),
     }
 
 
@@ -266,7 +265,7 @@ def _plot_comparison(stock_id, regime, results, blowups, recommended):
     fig = plt.figure(figsize=(14, 8))
     fig.patch.set_facecolor("white")
     fig.suptitle(
-        f"Stock {stock_id} - {regime.upper()} regime   |   Recommended: {recommended}",
+        f"Stock {stock_id} - {regime.upper()} regime, Recommended: {recommended}",
         fontsize=13, fontweight="500", y=0.98
     )
     gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.42, wspace=0.32)
@@ -384,7 +383,6 @@ def run_all():
             if not row.empty:
                 garch_q = row["median_QLIKE"].values[0]
 
-        # liquid -> EGARCH-X | illiquid -> HAR-RV | mixed -> LightGBM
         REGIME_MODEL = {"liquid": "EGARCH-X", "illiquid": "HAR-RV", "mixed": "LightGBM"}
         regime_default = REGIME_MODEL.get(regime, "HAR-RV")
         rec_q = np.nan
@@ -411,8 +409,8 @@ def run_all():
         # Determine recommended model by lowest available QLIKE
         candidates = {}
         if np.isfinite(garch_q): candidates["GARCH"] = garch_q
-        if np.isfinite(rec_q):   candidates[regime_default] = rec_q
-        if np.isfinite(lgbm_q):  candidates["LightGBM"] = lgbm_q
+        if np.isfinite(rec_q): candidates[regime_default] = rec_q
+        if np.isfinite(lgbm_q): candidates["LightGBM"] = lgbm_q
         actual_rec = min(candidates, key=candidates.get) if candidates else regime_default
 
         garch_str = f"{garch_q:.4f}" if np.isfinite(garch_q) else "-"
@@ -423,13 +421,13 @@ def run_all():
         print(f"  {stock_id:>6}  {regime:>9}  {garch_str:>12}  {rec_str:>12}  {lgbm_str:>12}  {actual_rec}{flag}")
 
         all_rows.append({
-            "stock_id":         stock_id,
-            "regime":           regime,
-            "regime_model":     regime_default,
+            "stock_id": stock_id,
+            "regime": regime,
+            "regime_model": regime_default,
             "actual_rec_model": actual_rec,
-            "garch_QLIKE":      garch_q,
-            "rec_model_QLIKE":  rec_q,
-            "lgbm_QLIKE":       lgbm_q,
+            "garch_QLIKE": garch_q,
+            "rec_model_QLIKE": rec_q,
+            "lgbm_QLIKE": lgbm_q,
         })
 
     summary = pd.DataFrame(all_rows)
@@ -442,13 +440,13 @@ def run_all():
 
     def _med(df_, col):
         return df_[col].median() if (col in df_.columns and not df_.empty) else float("nan")
-    print(f"\n  Liquid stocks   : GARCH={_med(liq_rows,'garch_QLIKE'):.4f} | "
+    print(f"\n  Liquid stocks : GARCH={_med(liq_rows,'garch_QLIKE'):.4f} | "
           f"EGARCH-X={_med(liq_rows,'rec_model_QLIKE'):.4f} | "
           f"LGBM={_med(liq_rows,'lgbm_QLIKE'):.4f}")
     print(f"  Illiquid stocks : GARCH={_med(illiq_rows,'garch_QLIKE'):.4f} | "
           f"HAR-RV={_med(illiq_rows,'rec_model_QLIKE'):.4f} | "
           f"LGBM={_med(illiq_rows,'lgbm_QLIKE'):.4f}")
-    print(f"  Mixed stocks    : LightGBM={_med(mixed_rows,'rec_model_QLIKE'):.4f} | "
+    print(f"  Mixed stocks : LightGBM={_med(mixed_rows,'rec_model_QLIKE'):.4f} | "
           f"LGBM col={_med(mixed_rows,'lgbm_QLIKE'):.4f}")
 
     C_GARCH = "#378ADD"; C_EX = "#1D9E75"; C_HAR = "#D85A30"; C_LGBM = "#8B5CF6"; SPINE = "#D3D1C7"
@@ -461,9 +459,9 @@ def run_all():
                      fontsize=12, fontweight="500")
 
         regime_panels = [
-            (axes[0], "Liquid stocks",   liq_rows,   C_EX,   "EGARCH-X"),
+            (axes[0], "Liquid stocks", liq_rows,   C_EX,   "EGARCH-X"),
             (axes[1], "Illiquid stocks", illiq_rows, C_HAR,  "HAR-RV"),
-            (axes[2], "Mixed stocks",    mixed_rows, C_LGBM, "LightGBM"),
+            (axes[2], "Mixed stocks", mixed_rows, C_LGBM, "LightGBM"),
         ]
         for ax, regime_label, df_, rec_col, rec_name in regime_panels:
             ax.set_facecolor("white")
@@ -479,7 +477,7 @@ def run_all():
             rec_q_c = df_["rec_model_QLIKE"].values
             lgbm_q_col = df_["lgbm_QLIKE"].values if "lgbm_QLIKE" in df_.columns else np.full(len(x), np.nan)
             ax.bar(x - w3, garch_q_c, width=w3, label="GARCH(1,1)", color=C_GARCH, alpha=0.75)
-            ax.bar(x,      rec_q_c,   width=w3, label=rec_name,     color=rec_col, alpha=0.75)
+            ax.bar(x, rec_q_c,   width=w3, label=rec_name,     color=rec_col, alpha=0.75)
             if not np.all(np.isnan(lgbm_q_col)):
                 ax.bar(x + w3, lgbm_q_col, width=w3, label="LightGBM", color=C_LGBM, alpha=0.75)
 
@@ -555,13 +553,13 @@ Examples:
   python pipline.py --stock_id 42 --no_plot
         """
     )
-    parser.add_argument("--all",      action="store_true",
+    parser.add_argument("--all", action="store_true",
                         help="Run summary across all 60 selected stocks")
     parser.add_argument("--stock_id", type=int, default=None,
                         help="Run pipeline for a single stock_id")
-    parser.add_argument("--time_id",  type=int, default=None,
+    parser.add_argument("--time_id", type=int, default=None,
                         help="Filter to a specific time_id within a stock")
-    parser.add_argument("--no_plot",  action="store_true",
+    parser.add_argument("--no_plot", action="store_true",
                         help="Skip saving plots (faster for batch runs)")
     args = parser.parse_args()
 

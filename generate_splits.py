@@ -3,10 +3,10 @@ generate_splits.py
 
 Generates the shared train/test dataset for the fair model comparison.
 
-Outputs -> DATA3888G08/splits/
-  train.csv        - buckets 1-16,  60 stocks, 300 time_ids
-  test.csv         - buckets 17-20, 60 stocks, 300 time_ids
-  stock_meta.csv   - stock_id, regime, median_bas, median_rv
+Outputs 
+  train.csv - buckets 1-16,  60 stocks, 300 time_ids
+  test.csv - buckets 17-20, 60 stocks, 300 time_ids
+  stock_meta.csv - stock_id, regime, median_bas, median_rv
 
 Columns: stock_id, time_id, time_bucket, wap, bas, rv, regime
 """
@@ -37,8 +37,8 @@ ILLIQUID_STOCKS = [
 ]
 ALL_STOCKS = sorted(LIQUID_STOCKS + MIXED_STOCKS + ILLIQUID_STOCKS)
 REGIME_MAP = (
-    {s: "liquid"   for s in LIQUID_STOCKS}
-  | {s: "mixed"    for s in MIXED_STOCKS}
+    {s: "liquid" for s in LIQUID_STOCKS}
+  | {s: "mixed" for s in MIXED_STOCKS}
   | {s: "illiquid" for s in ILLIQUID_STOCKS}
 )
 
@@ -77,17 +77,17 @@ SAMPLED_TIME_IDS = [
     32653, 32662, 32680, 32746, 32748,
 ]
 
-TRAIN_BUCKETS = list(range(1, 17))   # 1-16
-TEST_BUCKETS = list(range(17, 21))   # 17-20
+TRAIN_BUCKETS = list(range(1, 17)) # 1-16
+TEST_BUCKETS = list(range(17, 21)) # 17-20
 
 print("Loading data ...")
 df = (pd.read_csv(INPUT_CSV)
-        .rename(columns={"WAP_mean":          "wap",
-                         "BidAskSpread_mean":  "bas",
-                         "volatility":         "rv"})
+        .rename(columns={"WAP_mean": "wap",
+                         "BidAskSpread_mean": "bas",
+                         "volatility": "rv"})
         .query("time_bucket > 0")
         .query("stock_id in @ALL_STOCKS")
-        .query("time_id   in @SAMPLED_TIME_IDS")
+        .query("time_id in @SAMPLED_TIME_IDS")
         .sort_values(["stock_id", "time_id", "time_bucket"])
         .reset_index(drop=True))
 
@@ -128,9 +128,9 @@ test.to_csv(test_path, index=False)
 stock_meta.to_csv(meta_path, index=False)
 
 print(f"\nSaved:")
-print(f"  {train_path}  ({os.path.getsize(train_path)//1024:,} KB)")
-print(f"  {test_path}   ({os.path.getsize(test_path)//1024:,} KB)")
-print(f"  {meta_path}")
+print(f" {train_path} ({os.path.getsize(train_path)//1024:,} KB)")
+print(f" {test_path} ({os.path.getsize(test_path)//1024:,} KB)")
+print(f" {meta_path}")
 
 print(f"\nStock meta preview:")
 print(stock_meta.to_string(index=False))

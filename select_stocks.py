@@ -1,5 +1,5 @@
 """
-select_stocks.py - DATA3888 Group 8
+select_stocks.py 
 
 Quickly generates the 60-stock selection (20 liquid + 20 illiquid + 20 mixed)
 WITHOUT running any models.
@@ -47,11 +47,11 @@ def build_liquidity_profile(df):
     profile = (
         liq.groupby("stock_id")
         .agg(
-            median_bas          = ("bas",              "median"),
-            median_log_activity = ("log_activity",     "median"),
-            liquid_pct          = ("bucket_liquidity", lambda x: (x == "liquid").mean()),
-            illiquid_pct        = ("bucket_liquidity", lambda x: (x == "illiquid").mean()),
-            mixed_pct           = ("bucket_liquidity", lambda x: (x == "mixed").mean()),
+            median_bas = ("bas", "median"),
+            median_log_activity = ("log_activity", "median"),
+            liquid_pct = ("bucket_liquidity", lambda x: (x == "liquid").mean()),
+            illiquid_pct = ("bucket_liquidity", lambda x: (x == "illiquid").mean()),
+            mixed_pct = ("bucket_liquidity", lambda x: (x == "mixed").mean()),
         )
         .reset_index()
     )
@@ -108,11 +108,11 @@ liquid_sel, illiquid_sel, mixed_sel = select_stocks(df, profile)
 print("\n" + "="*60)
 print(f"  STOCK SELECTION  (seed={RANDOM_SEED}, {N_STOCKS_PER_REGIME} per regime)")
 print("="*60)
-print(f"\n  LIQUID   ({len(liquid_sel)} stocks):")
+print(f"\n  LIQUID ({len(liquid_sel)} stocks):")
 print(f"    {sorted(liquid_sel)}")
 print(f"\n  ILLIQUID ({len(illiquid_sel)} stocks):")
 print(f"    {sorted(illiquid_sel)}")
-print(f"\n  MIXED    ({len(mixed_sel)} stocks):")
+print(f"\n  MIXED ({len(mixed_sel)} stocks):")
 print(f"    {sorted(mixed_sel)}")
 print(f"\n  ALL 60:  {sorted(liquid_sel + illiquid_sel + mixed_sel)}")
 print("="*60)

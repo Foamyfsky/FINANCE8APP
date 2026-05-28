@@ -53,7 +53,7 @@ ok = 0
 for sid in SELECTED_STOCKS:
     json_path = os.path.join(OUT_DIR, f"stock_{sid}.json")
     if not os.path.exists(json_path):
-        print(f"  [SKIP] stock {sid}: JSON not found")
+        print(f" [SKIP] stock {sid}: JSON not found")
         continue
 
     with open(json_path) as f:
@@ -73,10 +73,10 @@ for sid in SELECTED_STOCKS:
                     for r in ldf.itertuples(index=False)]
 
     forecasts = {}
-    if gjr:  forecasts["garch"]   = gjr
-    if egx:  forecasts["egarchx"] = egx
-    if har:  forecasts["har"]     = har
-    if lgbm: forecasts["lgbm"]    = lgbm
+    if gjr: forecasts["garch"] = gjr
+    if egx: forecasts["egarchx"] = egx
+    if har: forecasts["har"] = har
+    if lgbm: forecasts["lgbm"] = lgbm
 
     existing["forecasts"] = forecasts
 
@@ -84,7 +84,7 @@ for sid in SELECTED_STOCKS:
         json.dump(existing, f, separators=(",",":"))
 
     summary = " | ".join(f"{k}:{len(v)}" for k, v in forecasts.items())
-    print(f"  stock {sid:3d}: [{summary}]")
+    print(f" stock {sid:3d}: [{summary}]")
     ok += 1
 
 print(f"\nPatched {ok}/{len(SELECTED_STOCKS)} stocks. Done!")

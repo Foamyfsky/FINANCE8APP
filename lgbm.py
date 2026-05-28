@@ -1,12 +1,10 @@
 """
 LightGBM Volatility Forecasting - Regime-Based (20 liquid + 20 illiquid)
-DATA3888 Group 8
-
 Uses the same 40 stocks selected by config.py so results are directly
 comparable to GARCH, EGARCH-X, and HAR-RV.
 
 Runs LightGBM separately per regime:
-  liquid   -> compared against GARCH + EGARCH-X
+  liquid -> compared against GARCH + EGARCH-X
   illiquid -> compared against GARCH + HAR-RV
 
 Outputs -> OUTPUT_DIR/lgbm_outputs/
@@ -61,24 +59,24 @@ def engineer_features(grp):
     spread = grp["BidAskSpread_mean"].values
     wap = grp["WAP_mean"].values if "WAP_mean" in grp.columns else np.zeros(len(grp))
     return pd.Series({
-        "rv_mean":         vol.mean(),
-        "rv_std":          vol.std(),
-        "rv_first":        vol[0],
-        "rv_last":         vol[-1],
-        "rv_trend":        vol[-1] - vol[0],
-        "rv_max":          vol.max(),
-        "rv_min":          vol.min(),
-        "rv_first3_mean":  vol[:3].mean(),
-        "rv_last3_mean":   vol[-3:].mean(),
-        "rv_mid_mean":     vol[6:10].mean(),
-        "spread_mean":     spread.mean(),
-        "spread_std":      spread.std(),
-        "spread_last":     spread[-1],
-        "spread_max":      spread.max(),
-        "spread_trend":    spread[-1] - spread[0],
-        "wap_mean":        wap.mean(),
-        "wap_std":         wap.std(),
-        "wap_trend":       wap[-1] - wap[0],
+        "rv_mean": vol.mean(),
+        "rv_std": vol.std(),
+        "rv_first": vol[0],
+        "rv_last": vol[-1],
+        "rv_trend": vol[-1] - vol[0],
+        "rv_max": vol.max(),
+        "rv_min": vol.min(),
+        "rv_first3_mean": vol[:3].mean(),
+        "rv_last3_mean": vol[-3:].mean(),
+        "rv_mid_mean": vol[6:10].mean(),
+        "spread_mean": spread.mean(),
+        "spread_std": spread.std(),
+        "spread_last": spread[-1],
+        "spread_max": spread.max(),
+        "spread_trend": spread[-1] - spread[0],
+        "wap_mean": wap.mean(),
+        "wap_std": wap.std(),
+        "wap_trend": wap[-1] - wap[0],
         "spread_rv_ratio": spread.mean() / max(vol.mean(), 1e-10),
     })
 
@@ -150,16 +148,15 @@ stock_global = (train_raw.groupby("stock_id")
                 .reset_index())
 
 data = (features
-        .merge(targets,        on=["stock_id","time_id"])
+        .merge(targets, on=["stock_id","time_id"])
         .merge(session_spread, on=["stock_id","time_id"])
-        .merge(stock_global,   on="stock_id"))
+        .merge(stock_global, on="stock_id"))
 data["regime"] = data["stock_id"].map(liquidity_map)
 
 FEATURE_COLS = [c for c in data.columns
                 if c not in ["stock_id","time_id","target_rv","mean_spread","fold","regime"]]
 
 print(f"  {data.shape[0]:,} sessions x {len(FEATURE_COLS)} features")
-
 
 # Train / evaluate per regime - temporal 80/20 split on time_ids.
 # Mirrors what GARCH, EGARCH-X, and HAR-RV do:
@@ -311,8 +308,8 @@ def make_comparison_plot(lgbm_ps, other_models, regime_label, filename, suptitle
 liq_lgbm = per_stock[per_stock["regime"] == "liquid"].copy()
 
 if not liq_lgbm.empty:
-    liq_garch = garch_sum[garch_sum["liquidity_regime"] == "liquid"]   if not garch_sum.empty   else pd.DataFrame()
-    liq_egarchx = egarchx_sum[egarchx_sum["egarchx_ran"] == True]      if not egarchx_sum.empty else pd.DataFrame()
+    liq_garch = garch_sum[garch_sum["liquidity_regime"] == "liquid"] if not garch_sum.empty   else pd.DataFrame()
+    liq_egarchx = egarchx_sum[egarchx_sum["egarchx_ran"] == True] if not egarchx_sum.empty else pd.DataFrame()
 
     make_comparison_plot(
         lgbm_ps=liq_lgbm,
@@ -333,7 +330,7 @@ if not illiq_lgbm.empty:
     make_comparison_plot(
         lgbm_ps=illiq_lgbm,
         other_models=[("GARCH(1,1)", C_GARCH, illiq_garch),
-                      ("HAR-RV",     C_HAR,   har_sum)],
+                      ("HAR-RV", C_HAR, har_sum)],
         regime_label="illiquid",
         filename="lgbm_02_vs_garch_har.png",
         suptitle="LightGBM vs GARCH vs HAR-RV - Illiquid Stocks",

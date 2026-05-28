@@ -18,8 +18,8 @@ with open(LGBM_CSV, newline="") as f:
     for row in csv.DictReader(f):
         sid = int(row["stock_id"])
         lgbm_by_stock[sid].append({
-            "t":      int(row["time_id"]),
-            "pred":   float(row["pred_vol"]),
+            "t": int(row["time_id"]),
+            "pred": float(row["pred_vol"]),
             "actual": float(row["target_rv"]),
         })
 
@@ -63,9 +63,9 @@ for fname in sorted(json_files):
         with open(har_csv, newline="") as f:
             for row in csv.DictReader(f):
                 har_rows.append({
-                    "t":      int(row["time_id"]),
-                    "pred":   float(row["pred_RV"]),
-                    "actual": float(row["actual_RV"]),
+                    "t": int(row["time_id"]),
+                    "pred": float(row["pred_RV"]),
+                    "actual":float(row["actual_RV"]),
                 })
         har_rows.sort(key=lambda x: x["t"])
         forecasts["har"] = har_rows
@@ -78,7 +78,7 @@ for fname in sorted(json_files):
         data["forecasts"] = forecasts
         with open(json_path, "w") as f:
             json.dump(data, f, separators=(",", ":"))
-        print(f"  stock_{stock_id}: GARCH={len(forecasts.get('garch',[]))}, "
+        print(f"stock_{stock_id}: GARCH={len(forecasts.get('garch',[]))}, "
               f"HAR={len(forecasts.get('har',[]))}, "
               f"LGBM={len(forecasts.get('lgbm',[]))}")
     else:

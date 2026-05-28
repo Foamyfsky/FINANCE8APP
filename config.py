@@ -1,18 +1,16 @@
 """
-M4 - Shared Configuration
-DATA3888 Group 8
+Universal config file for all models.
 
 Single source of truth for paths, model parameters, and stock selection.
-Import this in arma_jisu.py, rosa.py, and any other script.
+imported into in arma_jisu.py, rosa.py, and any other script.
 
 Liquidity source priority:
-  1. Rosa's har_rv_stock_liquidity_profile.csv  - richer, 3-way regime
+  1. Rosa's har_rv_stock_liquidity_profile.csv - richer, 3-way regime
      (bucket-level BAS + inverse-spread activity, 40% threshold)
-  2. Jamie's jamie_liquidity.csv                - fallback binary classification
+  2. Jamie's jamie_liquidity.csv - fallback binary classification
 
 Usage:
-    from config import get_selected_stocks, get_liquidity_map, filter_time_ids,
-                       OUTPUT_DIR, N_TRAIN, N_VAL
+    from config import get_selected_stocks, get_liquidity_map, filter_time_ids, OUTPUT_DIR, N_TRAIN, N_VAL
 """
 
 import os
@@ -33,10 +31,10 @@ _ROSA_SEARCH_PATHS = [
 ]
 ROSA_LIQUIDITY_CSV = next((p for p in _ROSA_SEARCH_PATHS if os.path.exists(p)), None)
 
-N_TRAIN = 16     # training buckets per time_id
-N_VAL = 4        # validation buckets per time_id
-N_STOCKS_PER_REGIME = 20     # 20 liquid + 20 illiquid + 20 mixed = 60 total
-TIME_ID_KEEP_PCT = 0.5       # keep the most regime-extreme 50% of time_ids
+N_TRAIN = 16 # training buckets per time_id
+N_VAL = 4 # validation buckets per time_id
+N_STOCKS_PER_REGIME = 20 # 20 liquid + 20 illiquid + 20 mixed = 60 total
+TIME_ID_KEEP_PCT = 0.5 # keep the most regime-extreme 50% of time_ids
 
 # Mixed regime: Jamie liquidity scores between these bounds -> mixed candidate
 MIXED_SCORE_LO = 0.3
@@ -44,17 +42,9 @@ MIXED_SCORE_HI = 0.7
 RANDOM_SEED = 42   # reproducible mixed-stock selection
 
 # Manual stock overrides.
-# If any list is non-empty, all three are used as-is and auto-selection is skipped.
-# To use auto-selection, leave all three as empty lists ([]).
-#
-# How to use:
-#   1. Run rosa.py once -> prints "Stock selection from Rosa's profile"
-#                          with the exact stock_ids chosen.
-#   2. Copy those ids into the lists below and share config.py with groupmates.
-#
-LIQUID_STOCKS   = [2, 14, 29, 39, 41, 43, 44, 46, 47, 50, 64, 69, 93, 99, 111, 119, 120, 123, 124, 125]
+LIQUID_STOCKS = [2, 14, 29, 39, 41, 43, 44, 46, 47, 50, 64, 69, 93, 99, 111, 119, 120, 123, 124, 125]
 ILLIQUID_STOCKS = [3, 5, 6, 9, 18, 27, 31, 33, 37, 40, 62, 75, 88, 90, 97, 98, 103, 112, 116, 126]
-MIXED_STOCKS    = [7, 15, 17, 19, 26, 32, 48, 56, 59, 70, 72, 76, 82, 89, 96, 101, 108, 109, 113, 122]
+MIXED_STOCKS = [7, 15, 17, 19, 26, 32, 48, 56, 59, 70, 72, 76, 82, 89, 96, 101, 108, 109, 113, 122]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -80,10 +70,9 @@ def _load_jamie_profile():
 def get_liquidity_map():
     """
     Returns {stock_id: regime} where regime in {'liquid', 'illiquid', 'mixed'}.
-
     Source priority:
-      1. Rosa's har_rv_stock_liquidity_profile.csv  - uses 'stock_regime' column
-      2. Jamie's jamie_liquidity.csv                - 'liquidity_regime' column
+      1. Rosa's har_rv_stock_liquidity_profile.csv - uses 'stock_regime' column
+      2. Jamie's jamie_liquidity.csv - 'liquidity_regime' column
     """
     rosa = _load_rosa_profile()
     if rosa is not None and "stock_regime" in rosa.columns:
@@ -107,8 +96,7 @@ def get_selected_stocks(df=None):
     Returns a dict with keys: 'liquid', 'illiquid', 'mixed', 'all'.
 
     Priority:
-      1. Manual overrides (LIQUID_STOCKS / ILLIQUID_STOCKS / MIXED_STOCKS above)
-         -- if any list is non-empty, all three are used as-is.
+      1. Manual overrides (LIQUID_STOCKS / ILLIQUID_STOCKS / MIXED_STOCKS above) -- if any list is non-empty, all three are used as-is.
       2. selected_stocks.csv cache -- loaded if it exists and is non-empty.
       3. Auto-selection from Rosa's or Jamie's liquidity profile + raw data.
     """
@@ -117,15 +105,15 @@ def get_selected_stocks(df=None):
         liquid = [int(s) for s in LIQUID_STOCKS]
         illiquid = [int(s) for s in ILLIQUID_STOCKS]
         mixed = [int(s) for s in MIXED_STOCKS]
-        print(f"  [config] Using manual stock overrides:")
-        print(f"    Liquid   ({len(liquid)}):   {liquid}")
-        print(f"    Illiquid ({len(illiquid)}): {illiquid}")
-        print(f"    Mixed    ({len(mixed)}):    {mixed}")
+        print(f" [config] Using manual stock overrides:")
+        print(f" Liquid ({len(liquid)}): {liquid}")
+        print(f" Illiquid ({len(illiquid)}): {illiquid}")
+        print(f" Mixed ({len(mixed)}): {mixed}")
         return {
-            "liquid":   liquid,
+            "liquid": liquid,
             "illiquid": illiquid,
-            "mixed":    mixed,
-            "all":      sorted(liquid + illiquid + mixed),
+            "mixed": mixed,
+            "all": sorted(liquid + illiquid + mixed),
         }
 
     # CSV cache
@@ -137,10 +125,10 @@ def get_selected_stocks(df=None):
             mixed = sel[sel["regime"] == "mixed"]["stock_id"].tolist()
             if liquid or illiquid:
                 return {
-                    "liquid":   liquid,
+                    "liquid": liquid,
                     "illiquid": illiquid,
-                    "mixed":    mixed,
-                    "all":      sorted(liquid + illiquid + mixed),
+                    "mixed": mixed,
+                    "all": sorted(liquid + illiquid + mixed),
                 }
 
     # Auto-select
@@ -213,25 +201,25 @@ def _compute_and_save(df):
     )
     pd.DataFrame(rows).sort_values("stock_id").to_csv(SELECTED_STOCKS_CSV, index=False)
 
-    print(f"  [config] Stock selection from {source}:")
-    print(f"    Liquid   ({len(liquid_sel)}):   {liquid_sel}")
-    print(f"    Illiquid ({len(illiquid_sel)}): {illiquid_sel}")
-    print(f"    Mixed    ({len(mixed_sel)}):    {mixed_sel}")
+    print(f" [config] Stock selection from {source}:")
+    print(f" Liquid ({len(liquid_sel)}): {liquid_sel}")
+    print(f" Illiquid ({len(illiquid_sel)}): {illiquid_sel}")
+    print(f" Mixed ({len(mixed_sel)}): {mixed_sel}")
 
     return {
-        "liquid":   liquid_sel,
+        "liquid": liquid_sel,
         "illiquid": illiquid_sel,
-        "mixed":    mixed_sel,
-        "all":      sorted(liquid_sel + illiquid_sel + mixed_sel),
+        "mixed": mixed_sel,
+        "all": sorted(liquid_sel + illiquid_sel + mixed_sel),
     }
 
 
 def filter_time_ids(vol_train, time_ids, regime):
     """
     Return the subset of time_ids most representative of the given regime:
-      liquid   -> tightest BAS (bottom TIME_ID_KEEP_PCT)
-      illiquid -> widest BAS   (top TIME_ID_KEEP_PCT)
-      mixed    -> keep ALL     (no filtering)
+      liquid -> tightest BAS (bottom TIME_ID_KEEP_PCT)
+      illiquid -> widest BAS (top TIME_ID_KEEP_PCT)
+      mixed -> keep ALL (no filtering)
     """
     if regime == "mixed":
         return time_ids
