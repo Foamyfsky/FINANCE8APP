@@ -1,28 +1,37 @@
 # DATA3888 Group 8 - Finance Capstone
 ## Dynamic Volatility Forecasting: A Liquidity-Aware Regime Strategy
 
-This folder contains everything needed to read our report, view the figures, run the
-interactive dashboard, and inspect the model code.
+This folder contains the reproducible report, cached model outputs, model scripts, report
+figures, and interactive dashboard for the DATA3888 Finance Group 8 capstone project.
+
+Public repository:
+
+```
+https://github.com/ji1isu/FINANCE8APP
+```
 
 ---
 
-## 1. Just want to read the report and see the plots?
+## 1. Report files
 
-Open this file in any web browser:
+The rendered report is:
 
 ```
 report.html
 ```
 
-That is the full written report with every figure already rendered inside it. You do not
-need Python, Quarto, or any setup to read it. Just double-click `report.html` and it opens
-in your browser. Each code block in the report is collapsed by default; click "Show code"
-on any figure to see the code that produced it.
+This is the full written report with all five figures embedded. It can be opened directly
+in a web browser. Code blocks are collapsed by default; use "Show code" in the report to
+inspect the code linked to each displayed analysis.
 
-If you prefer to re-render the report yourself from source, the source file is `report.qmd`
-(see Section 4 below).
+The source file used to generate the report is:
 
-All the figures used in the report are also saved as image files in:
+```
+report.qmd
+```
+
+All the figures used in the report are embedded in `report.html`. For re-rendering from
+`report.qmd`, the same figures should also be available as image files in:
 
 ```
 m4_outputs/report_figures/
@@ -35,44 +44,44 @@ m4_outputs/report_figures/
 
 ---
 
-## 2. Want to try the interactive dashboard?
+## 2. Interactive dashboard
 
-The live version (no setup needed) is hosted here:
+The deployed dashboard is hosted at:
 
 ```
 https://ji1isu.github.io/FINANCE8APP/final_tool_v4.html
 ```
 
-To run it locally instead, the dashboard reads its data from JSON files using `fetch()`,
-which browsers block when you open the HTML directly. You need a small local web server:
+To run the dashboard from the submitted folder, use a local web server. This is necessary
+because the dashboard reads JSON files using `fetch()`, which browsers block when the HTML
+file is opened directly:
 
 ```bash
 cd FINANCE8APP
 python -m http.server 8080
 ```
 
-Then open `http://localhost:8080/final_tool_v4.html` in your browser. (The VS Code
-"Live Server" extension also works: right-click `final_tool_v4.html` and choose
-"Open with Live Server".)
+Then open:
+
+```
+http://localhost:8080/final_tool_v4.html
+```
 
 ---
 
-## 3. Where is each part of the analysis implemented?
+## 3. Analysis implementation map
 
 ### Data aggregation (the raw order book to our working dataset)
 
-The raw Optiver data is 126 individual per-stock order book CSV files. We aggregated these
-into a single dataset (`optiver_aggregated.csv`) where each row is one 30-second bucket with
-its WAP, bid-ask spread, and log return. That aggregation code is in:
+The raw Optiver data is 112 individual per-stock order book CSV files. We aggregated these
+into a single working dataset where each row is one 30-second bucket with its WAP, bid-ask
+spread, and log return. The raw data and full aggregation notebook are not stored in this
+submitted folder because of file size, but the cached model outputs used by the report are
+stored under `m4_outputs/`.
 
-```
-asst.ipynb
-```
-
-This notebook reads the 126 raw `individual_book_train/*.csv` files, computes WAP and
+The aggregation step reads the raw `individual_book_train/*.csv` files, computes WAP and
 bid-ask spread per snapshot, calculates log returns, assigns each row to a 30-second bucket,
-and writes the merged `optiver_aggregated.csv`. Every model below reads from that aggregated
-file. (When the report says "we aggregated the stock files", this notebook is what did it.)
+and writes the merged working dataset. Every model below reads from that aggregated data.
 
 ### The four forecasting models
 
@@ -86,15 +95,15 @@ file. (When the report says "we aggregated the stock files", this notebook is wh
 
 | Purpose | File |
 |---|---|
-| EDA + bucket-level and stock-level liquidity classification | `eda_and_wls_jamie.py` (and `jamie_eda.py`) |
+| EDA + bucket-level and stock-level liquidity classification | `eda_and_wls_jamie.py` / `jamie_eda.py`; cached outputs are in `m4_outputs/jamie_*.csv` |
 | Stock selection and shared config (regimes, seed = 42, train/val sizes) | `config.py`, `select_stocks.py` |
 | Pipeline router that compares all models and picks the winner per stock | `pipline.py` (run with `--all`) |
 | Report figures (per-stock comparison panels, summary panels) | `final_figures.py` |
 | Builds the per-stock JSON files the dashboard reads | `generate_stock_data.py` |
 
-### Where the numbers in the report come from
+### Report output source
 
-The headline QLIKE comparison across all 60 stocks lives in:
+The headline QLIKE comparison across all 60 stocks is stored in:
 
 ```
 m4_outputs/pipeline/pipeline_all_stocks.csv
@@ -105,9 +114,9 @@ median QLIKE per stock plus the recommended model.
 
 ---
 
-## 4. Re-rendering the report from source (optional)
+## 4. Re-rendering the report from source
 
-The report source is `report.qmd`. To rebuild `report.html` yourself:
+To rebuild `report.html` from `report.qmd`:
 
 Requirements:
 - [Quarto](https://quarto.org/docs/get-started/)
@@ -118,22 +127,20 @@ cd FINANCE8APP
 quarto render report.qmd
 ```
 
-This regenerates `report.html`. The report loads pre-computed results from `m4_outputs/`,
+This command regenerates `report.html`. The report loads pre-computed results from `m4_outputs/`,
 so no models are re-trained during rendering.
 
 ---
 
-## 5. Re-running the whole pipeline from scratch (optional)
+## 5. Re-running the full pipeline
 
-Only needed if you want to retrain every model. This requires the raw dataset, which is not
-included here because of its size. It is available from the Optiver competition on Kaggle:
+This step is only required if every model must be retrained from raw data. It requires the
+raw Optiver dataset, which is not included here because of its size. It is available from
+the Optiver competition on Kaggle:
 <https://www.kaggle.com/c/optiver-realized-volatility-prediction>.
 
-Step 1 produces `optiver_aggregated.csv` from the raw order book files:
-
-```
-Run asst.ipynb   (raw individual_book_train/*.csv  ->  optiver_aggregated.csv)
-```
+Step 1 produces the aggregated working dataset from the raw order book files. Use the
+aggregation notebook from the full project repository if rebuilding from raw data.
 
 Then run the scripts in this order:
 
@@ -158,6 +165,8 @@ Every random seed is fixed at 42 for full reproducibility.
 |---|---|---|
 | Liquid | GJR-GARCH | 19 / 20 |
 | Illiquid | LightGBM | 20 / 20 |
-| Mixed | LightGBM | 16 / 20 |
+| Mixed | LightGBM | 13 / 20 |
 
-Theory and empirical winner agree on 52 of 60 stocks.
+Theory and empirical winner agree on 52 of 60 stocks. In mixed stocks, LightGBM beats the
+GARCH-family baseline in 16 of 20 cases, but the exact all-model winner count is 13 of 20
+because EGARCH-X wins the remaining 7 mixed stocks.
